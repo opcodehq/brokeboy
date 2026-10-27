@@ -15,3 +15,5 @@ Maintenance processes bounded customer and work batches with a persisted scan cu
 The SQL adapter deliberately validates supported client capabilities. D1 does not emulate a PostgreSQL transaction callback. No cache authorizes spending. Storage errors propagate. An advisory entitlement check cannot promise funds remain available; use consumption or reservation for enforcement.
 
 The package assumes an application's configured Stripe account and database belong to that application. Multi-merchant Stripe Connect routing is a separate future integration. Infrastructure resources and external usage evidence remain the integrating application's responsibility.
+
+`core/workflows` owns bounded dependency graphs, customer-scoped atomic funding, worker fencing, checkpoints and reconciliation. It uses the same ledger reservation primitives as the standalone reservation APIs. External jobs execute in the application. Durable internal timeout work bypasses the payment-provider lane; no payment connectivity is needed to expire leases. Workflow state is persisted in its own table and included in customer archives.

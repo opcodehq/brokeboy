@@ -2,6 +2,7 @@ import type { Billing } from "./core/engine.js";
 import { assert, BillingError, identifier } from "./core/errors.js";
 import type { PublishedPlan, Work } from "./core/types.js";
 import { returnUrl as safeReturnUrl } from "./core/urls.js";
+import type { JsonValue } from "./core/workflows.js";
 export type HandlerOptions = {
   billing: Billing;
   basePath?: string;
@@ -128,7 +129,74 @@ export function toHandler(
             grants: await billing.credits.list({ customerId: id }),
             operations: await billing.operations.list(id),
             ledger: await billing.credits.reconcile(id),
+            workflows: await billing.workflows.page({ customerId: id }),
           });
+        if (request.method === "GET" && path === "/admin/workflows")
+          return response(
+            await billing.workflows.page({
+              customerId: id,
+              entityId: url.searchParams.get("entityId") ?? undefined,
+              cursor: url.searchParams.get("cursor") ?? undefined,
+            }),
+          );
+        if (path === "/admin/workflow" && request.method === "GET") {
+          const workflowId = url.searchParams.get("workflowId");
+          assert(workflowId, "invalid_input");
+          return response(
+            await billing.workflows.get({
+              customerId: id,
+              workflowId,
+              entityId: url.searchParams.get("entityId") ?? undefined,
+            }),
+          );
+        }
+        if (request.method === "POST" && path === "/admin/workflow/resolve") {
+          const body = await readBody(request);
+          const outcome = string(body, "outcome");
+          const reason = string(body, "reason");
+          assert(reason.trim(), "reason_required");
+          assert(
+            ["retry", "succeeded", "failed"].includes(outcome),
+            "invalid_input",
+          );
+          assert(
+            body.fundUncovered === undefined ||
+              typeof body.fundUncovered === "boolean",
+            "invalid_input",
+          );
+          let actuals: Record<string, string> | undefined;
+          if (body.actuals !== undefined) {
+            assert(
+              body.actuals &&
+                typeof body.actuals === "object" &&
+                !Array.isArray(body.actuals),
+              "invalid_input",
+            );
+            actuals = {};
+            for (const [feature, amount] of Object.entries(body.actuals)) {
+              identifier(feature);
+              assert(typeof amount === "string", "invalid_decimal");
+              actuals[feature] = amount;
+            }
+          }
+          return response(
+            await billing.workflows.resolve({
+              customerId: id,
+              entityId:
+                body.entityId === undefined
+                  ? undefined
+                  : string(body, "entityId"),
+              workflowId: string(body, "workflowId"),
+              stepId: string(body, "stepId"),
+              idempotencyKey: string(body, "idempotencyKey"),
+              outcome: outcome as "retry" | "succeeded" | "failed",
+              actuals,
+              fundUncovered: body.fundUncovered as boolean | undefined,
+              result: body.result as JsonValue | undefined,
+              reason: `${admin.actorId}: ${reason}`,
+            }),
+          );
+        }
         if (request.method === "POST" && path === "/admin/adjust") {
           const body = await readBody(request);
           const reason = string(body, "reason");

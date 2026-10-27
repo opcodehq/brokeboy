@@ -1,7 +1,7 @@
 import { put, type Transaction } from "../storage/contract.js";
 import { addInterval, canonical, hash } from "./catalog.js";
-import { decimal, minimum, nonnegative, units } from "./decimal.js";
-import { assert } from "./errors.js";
+import { decimal, minimum, nonnegative, positive, units } from "./decimal.js";
+import { assert, timestamp } from "./errors.js";
 import type {
   Allocation,
   Balance,
@@ -11,6 +11,7 @@ import type {
   PublishedPlan,
   Reservation,
   Subscription,
+  Usage,
 } from "./types.js";
 
 type Position = { spent: string; held: string };
@@ -355,6 +356,141 @@ export class Ledger {
     }
     assert(remaining === 0n, "insufficient_balance");
     return result;
+  }
+  async reserve(
+    tx: Transaction,
+    input: {
+      feature: string;
+      amount: string;
+      entityId?: string;
+      poolScope?: "customer" | "entity";
+      expiresAt: number;
+    },
+    operation: string,
+  ): Promise<Reservation> {
+    assert(timestamp(input.expiresAt) > this.now(), "invalid_expiry");
+    const allocations = await this.allocate(
+      tx,
+      input.feature,
+      nonnegative(input.amount),
+      input.poolScope === "customer" ? undefined : input.entityId,
+      true,
+      operation,
+    );
+    let expiresAt = input.expiresAt;
+    for (const allocation of allocations)
+      expiresAt = Math.min(
+        expiresAt,
+        (await tx.get<Grant>("grants", allocation.grantId))!.data.expiresAt ??
+          Infinity,
+      );
+    const reservation: Reservation = {
+      ...input,
+      id: crypto.randomUUID(),
+      allocations,
+      expiresAt,
+      status: "held",
+    };
+    await put(tx, "reservations", reservation.id, reservation, "held");
+    return reservation;
+  }
+  async reservationFunded(tx: Transaction, reservation: Reservation) {
+    if (reservation.status !== "held" || reservation.expiresAt <= this.now())
+      return false;
+    for (const allocation of reservation.allocations) {
+      const row = await tx.get<Grant>("grants", allocation.grantId);
+      if (
+        row?.state !== "active" ||
+        (row.data.expiresAt !== undefined && row.data.expiresAt <= this.now())
+      )
+        return false;
+      if (
+        row.data.origin === "subscription" ||
+        row.data.origin === "rollover"
+      ) {
+        const source = (
+          await tx.get<Subscription>("subscriptions", row.data.sourceId)
+        )?.data;
+        if (!source || !isEntitled(source, this.now())) return false;
+      }
+    }
+    return true;
+  }
+  async increaseReservation(
+    tx: Transaction,
+    reservation: Reservation,
+    amount: string,
+    operation: string,
+  ) {
+    assert(
+      await this.reservationFunded(tx, reservation),
+      "reservation_not_held",
+    );
+    const extra = await this.allocate(
+      tx,
+      reservation.feature,
+      positive(amount),
+      reservation.poolScope === "customer" ? undefined : reservation.entityId,
+      true,
+      operation,
+    );
+    let expiresAt = reservation.expiresAt;
+    for (const a of extra)
+      expiresAt = Math.min(
+        expiresAt,
+        (await tx.get<Grant>("grants", a.grantId))!.data.expiresAt ?? Infinity,
+      );
+    const next = {
+      ...reservation,
+      amount: decimal(units(reservation.amount) + units(amount)),
+      allocations: [...reservation.allocations, ...extra],
+      expiresAt,
+    };
+    await put(tx, "reservations", next.id, next, "held");
+    return next;
+  }
+  async settleReservation(
+    tx: Transaction,
+    reservation: Reservation,
+    amount: string,
+    operation: string,
+    properties: Record<string, string> = {},
+  ): Promise<Usage> {
+    assert(
+      await this.reservationFunded(tx, reservation),
+      "reservation_not_held",
+    );
+    let left = nonnegative(amount);
+    assert(left <= units(reservation.amount), "reservation_exceeded");
+    const used: Allocation[] = [];
+    for (const a of reservation.allocations) {
+      const take = minimum(units(a.amount), left);
+      await this.adjustPosition(tx, a.grantId, 0n, -units(a.amount));
+      if (take > 0n) {
+        await this.movement(tx, a.grantId, take, operation, "settle");
+        used.push({ grantId: a.grantId, amount: decimal(take) });
+        left -= take;
+      }
+    }
+    await put(
+      tx,
+      "reservations",
+      reservation.id,
+      { ...reservation, status: "settled" },
+      "settled",
+    );
+    const usage: Usage = {
+      id: crypto.randomUUID(),
+      feature: reservation.feature,
+      entityId: reservation.entityId,
+      quantity: amount,
+      charged: amount,
+      allocations: used,
+      createdAt: this.now(),
+      properties: { ...properties, reservationId: reservation.id },
+    };
+    await put(tx, "usage", usage.id, usage);
+    return usage;
   }
   async finishReservation(
     tx: Transaction,

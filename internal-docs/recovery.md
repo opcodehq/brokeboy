@@ -38,3 +38,9 @@ Configure Stripe's invoice finalization grace period to match your maximum expec
 A customer snapshot is a migration aid, not a full database backup. Imports preserve grant provenance, expiry, opening spent balances, subscription snapshots, license assignments and persistent quantity occupancy. Dry runs report blockers; unfinished financial work and open postpaid periods require reconciliation before importing. Live reservations must be settled or reconciled before importing. Imports are idempotent and do not automatically charge or rewrite external subscriptions.
 
 To link existing Stripe subscriptions, verify the application's customer mapping, call `customers.update` with the verified Stripe customer ID, then `migration.linkSubscription` with an explicit plan mapping. This operation modifies subscription metadata and reconciles current state; it does not transfer payment data between accounts. Do not run two active charging engines during cutover.
+
+## Workflow upgrade and recovery
+
+Generate the additive `brokeboy_workflows` table and state index using your normal Drizzle migration workflow before invoking workflows or customer exports with this version. Brokeboy does not apply it at startup. `migrationSQL` also emits idempotent table/index creation for a reviewed manual installation. No existing financial rows are rewritten.
+
+Worker lease expiry does not prove external work stopped. Inspect the upstream operation before resolving a stage; retries require safe execution evidence. Resolve with verified actuals, an authenticated reason and explicit funding permission for uncovered costs. Do not delete a reservation or change a workflow row to bypass reconciliation. Preserve database and external payment evidence together during restore.

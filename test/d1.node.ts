@@ -61,6 +61,48 @@ test("D1 atomic batches survive contention, replay, and rollback", async () => {
       idempotencyKey: `use-${winner}`,
     });
     assert.equal((await billing.usage.list({ customerId: "d1" })).length, 10);
+    await billing.credits.grant({
+      customerId: "d1",
+      feature: "credits",
+      amount: "10",
+      idempotencyKey: "workflow-funds",
+    });
+    await billing.workflows.create({
+      customerId: "d1",
+      workflowId: "job",
+      idempotencyKey: "start-job",
+      steps: [{ id: "run", budgets: [{ feature: "credits", amount: "5" }] }],
+    });
+    const claims = await Promise.all(
+      ["one", "two"].map((workerId) =>
+        billing.workflows.claim({
+          customerId: "d1",
+          workflowId: "job",
+          workerId,
+          idempotencyKey: `claim-${workerId}`,
+        }),
+      ),
+    );
+    assert.equal(claims.filter((c) => c.claimed).length, 1);
+    const claimed = claims.find((c) => c.claimed)!;
+    if (!claimed.claimed) throw new Error("missing workflow claim");
+    const complete = {
+      customerId: "d1",
+      workflowId: "job",
+      stepId: "run",
+      token: claimed.step.lease!.token,
+      actuals: { credits: "3" },
+      idempotencyKey: "complete-job",
+    };
+    const done = await billing.workflows.complete(complete);
+    assert.equal(done.status, "succeeded");
+    assert.deepEqual(await billing.workflows.complete(complete), done);
+    assert.equal(
+      (await billing.credits.balance({ customerId: "d1", feature: "credits" }))
+        .available,
+      "7",
+    );
+    assert.equal((await billing.credits.reconcile("d1")).consistent, true);
   } finally {
     await mf.dispose();
   }

@@ -1,6 +1,6 @@
 {
   "name": "brokeboy",
-  "version": "0.1.0-alpha.0",
+  "version": "0.1.0-alpha.1",
   "description": "Billing, credits, and entitlements in your application and database.",
   "license": "MIT",
   "type": "module",
@@ -63,7 +63,7 @@
     "test": "bun test",
     "test:integration": "bun test test/sqlite.test.ts test/sql.test.ts",
     "test:node": "node --experimental-strip-types --test test/node.contract.ts",
-    "check": "bun run schemas:check && bun run lint && bun run check-types && bun run test && bun run build && bun run test:node && bun run test:neon",
+    "check": "bun run schemas:check && bun run lint && bun run build && bun run check-types && bun run test && bun run test:node && bun run test:neon",
     "test:d1": "node --experimental-strip-types --test test/d1.node.ts",
     "test:stripe-sandbox": "bun scripts/stripe-sandbox.ts",
     "benchmark": "bun scripts/benchmark.ts",

@@ -96,3 +96,54 @@ test("SQLite backup restores receipts and balances on a new connection", async (
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("adding workflow tables preserves historical balances and receipts", async () => {
+  const db = new Database(":memory:");
+  const migrations = migrationSQL("sqlite");
+  for (const sql of migrations.filter(
+    (sql) => !sql.includes("brokeboy_workflows"),
+  ))
+    db.exec(sql);
+  const storage = drizzleAdapter(drizzle(db), { dialect: "sqlite" });
+  const billing = brokeboy({ database: storage });
+  await billing.customers.create({ id: "upgrade", idempotencyKey: "create" });
+  await billing.credits.grant({
+    customerId: "upgrade",
+    feature: "credits",
+    amount: "10",
+    idempotencyKey: "grant",
+  });
+  const receipt = await billing.usage.consume({
+    customerId: "upgrade",
+    feature: "credits",
+    amount: "2",
+    idempotencyKey: "use",
+  });
+  for (const sql of migrations) db.exec(sql);
+  await billing.workflows.create({
+    customerId: "upgrade",
+    workflowId: "job",
+    idempotencyKey: "start",
+    steps: [{ id: "step", budgets: [{ feature: "credits", amount: "3" }] }],
+  });
+  assert.deepEqual(
+    await billing.usage.consume({
+      customerId: "upgrade",
+      feature: "credits",
+      amount: "2",
+      idempotencyKey: "use",
+    }),
+    receipt,
+  );
+  assert.equal(
+    (
+      await billing.credits.balance({
+        customerId: "upgrade",
+        feature: "credits",
+      })
+    ).available,
+    "5",
+  );
+  assert.equal((await billing.credits.reconcile("upgrade")).consistent, true);
+  db.close();
+});

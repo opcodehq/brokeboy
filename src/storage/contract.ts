@@ -15,6 +15,7 @@ export const tables = [
   "audit",
   "counters",
   "licenses",
+  "workflows",
 ] as const;
 export type Table = (typeof tables)[number];
 export type Row<T = unknown> = { id: string; state: string; data: T };
@@ -53,12 +54,15 @@ export const put = <T>(
   data: T,
   state = "active",
 ) => {
-  // Meter exports must drain before subscription changes that depend on them.
+  // Internal deadlines and meter exports must not sit behind external payment work.
+  const kind = (data as { kind?: string }).kind;
   const indexedState =
-    table === "work" &&
-    (data as { kind?: string }).kind === "meter" &&
-    (state === "pending" || state === "failed")
-      ? `meter_${state}`
+    table === "work" && (state === "pending" || state === "failed")
+      ? kind === "meter"
+        ? `meter_${state}`
+        : kind === "workflow_timeout"
+          ? `internal_${state}`
+          : state
       : state;
   return tx.put(table, { id, state: indexedState, data });
 };

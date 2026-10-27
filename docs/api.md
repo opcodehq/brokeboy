@@ -9,7 +9,7 @@
 | `entities`        | `create`, `list`, `update`                                                                           |
 | `credits`         | `grant`, `balance`, `list`, `adjust`, `reconcile`                                                    |
 | `entitlements`    | `check`, `list`                                                                                      |
-| `usage`           | `consume`, `record`, `list`, `correct`, `setQuantity`                                                |
+| `usage`           | `consume`, `record`, `batch`, `aggregate`, `list`, `correct`, `setQuantity`                          |
 | `reservations`    | `create`, `increase`, `settle`, `release`, `list`                                                    |
 | `subscriptions`   | `attach`, `list`, `checkout`, `preview`, `update`, `cancel`, `pause`, `resume`, `schedule`, `portal` |
 | `licenses`        | `assign`, `release`, `list`                                                                          |
@@ -25,6 +25,8 @@
 History `list` methods return the first 100 records. Use `page` with `limit` and the returned `nextCursor` to continue.
 
 Published TypeScript declarations specify the argument and return types. Server-side methods trust the application's customer/actor context. Do not forward raw browser bodies into them.
+
+The `workflows` group provides `create`, `get`, `page`, `claim`, `heartbeat`, `increase`, `complete`, `fail`, `resolve`, and `cancel`. See [workflow semantics](workflows.md) for atomic budgets, leases, dependency graphs, and recovery.
 
 ## Decimal values and pricing
 
@@ -69,4 +71,4 @@ The exported schemas include separate customers, entities, catalog versions, sub
 
 `catalog.publish({catalog,expectedRevision})` is explicit. Retrying the same catalog is a no-op. Conflicting revisions fail; users choose whether to pull the database version or publish a reviewed update. `catalog.custom` publishes a private plan. Omitting plans leaves them and existing subscribers intact. Export includes current definitions and historical versions.
 
-The initial schema is version 1. Review generated database migrations in source control. Never auto-apply migrations on request startup.
+Workflow support adds the `brokeboy_workflows` table and its state index to the initial schema. Existing financial tables are unchanged; generate and apply this additive migration before using workflow APIs. Review generated database migrations in source control. Never auto-apply migrations on request startup.

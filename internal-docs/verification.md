@@ -6,7 +6,10 @@ Status: alpha implementation. This file distinguishes implemented behavior, loca
 
 - TypeScript strict checks, Biome, generated-schema drift checks and package compilation.
 - Shared behavioral contracts on memory, Bun SQLite, PostgreSQL 15 and the mysql2 adapter against MariaDB 10.5.
-- Native Node SQLite restart/replay and backup/restore on a new connection.
+- Native Node SQLite restart/replay, backup/restore on a new connection and additive workflow-schema upgrades.
+- Shared workflow contracts on memory, Bun SQLite, PostgreSQL and MySQL: concurrent claims, restart settlement, per-event batch replay and atomic rollback.
+- Workflow dependency joins, expired leases, delayed retries, fencing, budget increases, cancellation, late actuals, explicit recovery funding, checkpoint limits, grant revocation, parent pools and migration replay.
+- Administrative workflow authorization, actor auditing and customer-response isolation.
 - D1 atomic batches, optimistic contention, rollback and replay through Miniflare/workerd.
 - Actual Neon WebSocket driver through a local WebSocket-to-PostgreSQL protocol bridge; this is driver qualification, not a hosted Neon performance claim.
 - Stripe SDK HTTP fixtures, signed webhook verification, delayed payment fulfillment, purchase deduplication, resource recovery, quantity-aware packs and cumulative monetary export.
@@ -18,9 +21,9 @@ The dedicated Node and Bun test commands intentionally use different SQLite driv
 
 ## Recorded alpha check (2026-10-27)
 
-- `bun run check`: 89 Bun tests, two Node native-SQLite tests and one Neon WebSocket driver test passed, including real local PostgreSQL 15 and MariaDB 10.5.
-- `bun run test:d1`: Miniflare/workerd contention, rollback and replay passed.
-- Isolated `npm install` of the packed artifact: core consumption and CLI SQL generation passed with none of React, Stripe or Drizzle installed.
+- `bun run check`: 115 Bun tests, three Node native-SQLite tests and one Neon WebSocket driver test passed, including real local PostgreSQL 15 and MariaDB 10.5.
+- `bun run test:d1`: Miniflare/workerd contention, rollback, replay, concurrent workflow claims and stage settlement passed.
+- Isolated `npm install` of the packed artifact: core consumption, workflow execution and CLI SQL generation passed with none of React, Stripe or Drizzle installed.
 - GitHub Actions [run 40482806769](https://github.com/opcodehq/brokeboy/actions/runs/40482806769) could not start either matrix job. GitHub reported an account payment/spending-limit restriction. This is not a passing hosted CI result; Node 22, PostgreSQL 16 and MySQL 8 still require that run.
 - Merchant-authorized Stripe sandbox run passed after credentials were configured: Checkout creation, actual initial invoice payment, signed local ingestion of retrieved state, allowance provisioning, consumption, test-clock renewal payment, renewed allowance and ledger reconciliation. Checkout completion in a browser and public webhook delivery were not exercised. The run exposed and fixed required customer name/address updates for Checkout tax-ID collection.
 
@@ -38,10 +41,10 @@ The dedicated Node and Bun test commands intentionally use different SQLite driv
 
 Run `bun run benchmark`. The harness reports engine bundle size, database statement count, and latency for 200 consumptions against one in-memory SQLite customer/grant. It labels that environment explicitly. These numbers are not a networked-database throughput guarantee or production SLA.
 
-Recorded on this sandbox with Bun 1.3.10: 200 in-memory SQLite consumptions, 21 SQL statements per consumption, p50 0.47 ms and p95 0.83 ms. The browser-targeted root bundle was 52,849 bytes (15,378 gzip). Re-run rather than extrapolating these figures to a networked database.
+Recorded on this sandbox with Bun 1.3.10: 200 in-memory SQLite consumptions, 21 SQL statements per consumption, p50 0.40 ms and p95 1.11 ms. The browser-targeted root bundle was 67,472 bytes (19,147 gzip). Re-run rather than extrapolating these figures to a networked database.
 
 The benchmark initially exposed an export-stripping issue with a package metadata optimization in Bun 1.3.10. The metadata was removed and an executable-bundle regression test protects the actual exports.
 
 ## Publication policy
 
-The current package is `0.1.0-alpha.0`. Prerelease source and package artifacts can be reviewed and tested independently. Do not label a release stable while external gates remain open. There is no hosted billing service or paid feature edition.
+The current package is `0.1.0-alpha.1`. Prerelease source and package artifacts can be reviewed and tested independently. Do not label a release stable while external gates remain open. There is no hosted billing service or paid feature edition.

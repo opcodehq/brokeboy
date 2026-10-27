@@ -7,6 +7,7 @@ import {
   rateUsage,
 } from "../src/index.js";
 import { memoryAdapter } from "../src/memory.js";
+import { workflowContract } from "./workflows.contract.js";
 
 const catalog = defineCatalog({
   features: [
@@ -45,6 +46,7 @@ const catalog = defineCatalog({
   ],
 });
 export function engineContract(name: string, make: () => Promise<Storage>) {
+  workflowContract(name, make);
   describe(name, () => {
     async function setup() {
       let now = Date.UTC(2026, 0, 31);

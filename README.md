@@ -6,6 +6,8 @@ Brokeboy is an MIT-licensed TypeScript library. It runs in your backend, stores 
 
 This repository is an **alpha**. The implementation includes the billing engine and integrations below; merchant-authorized Stripe sandbox and hosted-driver qualification are release gates, not claims made by the unit tests. See [verification](internal-docs/verification.md).
 
+Upgrading from alpha.0: generate and apply the additive workflows-table migration before using the new workflow, admin-inspection or snapshot-export APIs. See [the recovery guide](internal-docs/recovery.md#workflow-upgrade-and-recovery).
+
 ## Try it
 
 ```sh
@@ -21,7 +23,7 @@ To install the locally built library into another application:
 ```sh
 npm pack
 # From your application:
-npm install /path/to/brokeboy/brokeboy-0.1.0-alpha.0.tgz
+npm install /path/to/brokeboy/brokeboy-0.1.0-alpha.1.tgz
 ```
 
 The package has separate entry points. React, Drizzle, and Stripe are optional peers; importing `brokeboy` does not import them. Payment processing and your infrastructure still have their own costs.
@@ -175,12 +177,14 @@ Call `await billing.maintenance.run({ limit: 100 })` from a durable scheduler, n
 - Entity balances, customer-shared pools, persistent quantities and license assignments.
 - Trials with explicit allowances, spending caps, threshold events and bounded automatic top-ups.
 - Checkout, payment portals, subscription changes, schedules, tax opt-in, discounts, invoices, refunds and credit notes through Stripe.
+- Durable job workflows with dependency graphs, atomic stage budgets, worker leases, retries and audited recovery.
+- Atomic multi-event usage ingestion and paginated dimensional usage aggregation.
 - Durable webhook inbox, idempotent operations, resource mappings, work leases, audit events and reconciliation.
 - Catalog revision checks, import/export, external subscription linking, CLI and optional React components.
 
 Use `addOn: true` for independent subscription add-ons. Base plans share the default `base` group. Free plans are attached directly; paid plans require verified payment. Trial consumable allowances default to zero unless `trialIncluded` is configured. A trial is claimed once per application customer ID; your auth system owns identity verification.
 
-See [API and policies](docs/api.md), [React toolkit](docs/react.md), [architecture](internal-docs/architecture.md), and [operations and recovery](internal-docs/recovery.md).
+See [complex workflows](docs/workflows.md), [API and policies](docs/api.md), [React toolkit](docs/react.md), [architecture](internal-docs/architecture.md), and [operations and recovery](internal-docs/recovery.md).
 
 ## Develop
 

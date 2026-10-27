@@ -123,3 +123,64 @@ test("checkout responses do not expose catalog rate internals or operation paylo
   expect(body).not.toContain("payload");
   expect(body).not.toContain("0.123456");
 });
+test("workflow resolution requires administrator authorization and records the actor", async () => {
+  const { billing, handler } = await setup();
+  await billing.workflows.create({
+    customerId: "a",
+    workflowId: "job",
+    idempotencyKey: "start",
+    steps: [{ id: "run", budgets: [{ feature: "credits", amount: "5" }] }],
+  });
+  const claim = await billing.workflows.claim({
+    customerId: "a",
+    workflowId: "job",
+    workerId: "worker",
+    idempotencyKey: "claim",
+  });
+  if (!claim.claimed) throw new Error("missing claim");
+  await billing.workflows.fail({
+    customerId: "a",
+    workflowId: "job",
+    stepId: "run",
+    token: claim.step.lease!.token,
+    retrySafe: false,
+    code: "unknown",
+    idempotencyKey: "failed",
+  });
+  const request = () =>
+    new Request(
+      "https://example.test/api/billing/admin/workflow/resolve?customerId=a",
+      {
+        method: "POST",
+        headers: {
+          origin: "https://example.test",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          workflowId: "job",
+          stepId: "run",
+          outcome: "succeeded",
+          actuals: { credits: "2" },
+          reason: "verified output",
+          idempotencyKey: "resolution",
+        }),
+      },
+    );
+  expect((await handler(request())).status).toBe(403);
+  const admin = toHandler({
+    billing,
+    resolveCustomer: async () => "a",
+    authorizeAdmin: async () => ({ actorId: "operator" }),
+  });
+  const result = await admin(request());
+  expect(result.status).toBe(200);
+  expect(await result.json()).toMatchObject({ status: "succeeded" });
+  expect(JSON.stringify(await billing.events.list("a"))).toContain(
+    "operator: verified output",
+  );
+  // A regular customer endpoint never returns lease tokens or workflow results.
+  const customer = await handler(
+    new Request("https://example.test/api/billing/customer"),
+  );
+  expect(await customer.text()).not.toContain(claim.step.lease!.token);
+});

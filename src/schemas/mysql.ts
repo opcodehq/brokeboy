@@ -223,6 +223,19 @@ export const billingLicenses = mysqlTable(
     index("brokeboy_licenses_state").on(t.scope, t.state),
   ],
 );
+export const billingWorkflows = mysqlTable(
+  "brokeboy_workflows",
+  {
+    scope: binaryId("scope").notNull(),
+    id: binaryId("id").notNull(),
+    state: varchar("state", { length: 32 }).notNull(),
+    data: longtext("data").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.scope, t.id] }),
+    index("brokeboy_workflows_state").on(t.scope, t.state),
+  ],
+);
 export const billingLocks = mysqlTable("brokeboy_locks", {
   scope: binaryId("scope").primaryKey(),
   revision: int("revision").notNull().default(0),

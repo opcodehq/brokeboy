@@ -218,6 +218,19 @@ export const billingLicenses = pgTable(
     index("brokeboy_licenses_state").on(t.scope, t.state),
   ],
 );
+export const billingWorkflows = pgTable(
+  "brokeboy_workflows",
+  {
+    scope: text("scope").notNull(),
+    id: text("id").notNull(),
+    state: text("state").notNull(),
+    data: text("data").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.scope, t.id] }),
+    index("brokeboy_workflows_state").on(t.scope, t.state),
+  ],
+);
 export const billingLocks = pgTable("brokeboy_locks", {
   scope: text("scope").primaryKey(),
   revision: integer("revision").notNull().default(0),

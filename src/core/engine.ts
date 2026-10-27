@@ -50,6 +50,7 @@ import type {
   WriteInput,
 } from "./types.js";
 import { returnUrl } from "./urls.js";
+import { Workflows } from "./workflows.js";
 export type BillingOptions = {
   database: Storage;
   environment?: Environment;
@@ -68,6 +69,7 @@ export class Billing {
   private readonly ledger: Ledger;
   private readonly resourceStore: ResourceManager;
   readonly environment: Environment;
+  readonly workflows: Workflows;
   constructor(private readonly options: BillingOptions) {
     this.store = options.database;
     this.now = options.now ?? Date.now;
@@ -79,6 +81,15 @@ export class Billing {
       this.now,
     );
     assert(["test", "live"].includes(this.environment), "invalid_environment");
+    this.workflows = new Workflows({
+      now: this.now,
+      ledger: this.ledger,
+      write: this.write.bind(this),
+      read: (customerId, run) => this.store.read(this.scope(customerId), run),
+      event: this.event.bind(this),
+      enqueue: this.enqueue.bind(this),
+      afterUsage: this.afterUsage.bind(this),
+    });
   }
   private scope(customerId: string) {
     return `${this.environment}:c:${identifier(customerId)}`;
@@ -94,31 +105,38 @@ export class Billing {
     create = false,
   ): Promise<T> {
     const digest = await hash({ method, payload });
-    const key = identifier(input.idempotencyKey);
+    identifier(input.idempotencyKey);
     return this.store.atomic(this.scope(input.customerId), async (tx) => {
-      const previous = await tx.get<SavedOperation>("operations", key);
-      if (previous) {
-        assert(previous.data.hash === digest, "idempotency_conflict");
-        return previous.data.result as T;
-      }
-      if (!create)
-        assert(
-          await tx.get("customers", input.customerId),
-          "customer_not_found",
-        );
-      if (input.entityId)
-        assert(
-          await tx.get("entities", identifier(input.entityId)),
-          "entity_not_found",
-        );
-      const result = JSON.parse(JSON.stringify(await run(tx, key))) as T;
-      await put(tx, "operations", key, {
-        hash: digest,
-        result,
-        createdAt: this.now(),
-      });
-      return result;
+      return this.applyWrite(tx, input, digest, run, create);
     });
+  }
+  private async applyWrite<T>(
+    tx: Transaction,
+    input: WriteInput,
+    digest: string,
+    run: (tx: Transaction, operation: string) => Promise<T>,
+    create = false,
+  ): Promise<T> {
+    const key = identifier(input.idempotencyKey);
+    const previous = await tx.get<SavedOperation>("operations", key);
+    if (previous) {
+      assert(previous.data.hash === digest, "idempotency_conflict");
+      return previous.data.result as T;
+    }
+    if (!create)
+      assert(await tx.get("customers", input.customerId), "customer_not_found");
+    if (input.entityId)
+      assert(
+        await tx.get("entities", identifier(input.entityId)),
+        "entity_not_found",
+      );
+    const result = JSON.parse(JSON.stringify(await run(tx, key))) as T;
+    await put(tx, "operations", key, {
+      hash: digest,
+      result,
+      createdAt: this.now(),
+    });
+    return result;
   }
   private async customer(tx: Transaction, id: string) {
     const row = await tx.get<Customer>("customers", id);
@@ -824,6 +842,107 @@ export class Billing {
         items: page.items.filter((u) => u.entityId === input.entityId),
       };
     },
+    aggregate: async (
+      input: ScopeInput & {
+        from: number;
+        to: number;
+        cursor?: string;
+        limit?: number;
+        groupBy?: string[];
+      },
+    ) => {
+      assert(
+        timestamp(input.from) < timestamp(input.to),
+        "invalid_usage_window",
+      );
+      const groupBy = input.groupBy ?? [];
+      assert(
+        groupBy.length <= 8 && new Set(groupBy).size === groupBy.length,
+        "invalid_usage_grouping",
+      );
+      for (const key of groupBy) identifier(key);
+      const page = await this.page<Usage>(input.customerId, "usage", input);
+      const totals = new Map<
+        string,
+        {
+          feature: string;
+          currency?: string;
+          planVersion?: string;
+          properties: Record<string, string | null>;
+          quantity: string;
+          charged: string;
+          records: number;
+        }
+      >();
+      for (const receipt of page.items) {
+        if (
+          receipt.entityId !== input.entityId ||
+          receipt.createdAt < input.from ||
+          receipt.createdAt >= input.to
+        )
+          continue;
+        const properties = Object.fromEntries(
+          groupBy.map((key) => [key, receipt.properties[key] ?? null]),
+        );
+        const identity = {
+          feature: receipt.feature,
+          currency: receipt.currency,
+          planVersion: receipt.planVersion,
+          properties,
+        };
+        const key = canonical(identity),
+          previous = totals.get(key);
+        totals.set(key, {
+          ...identity,
+          quantity: decimal(
+            units(previous?.quantity ?? "0") + units(receipt.quantity),
+          ),
+          charged: decimal(
+            units(previous?.charged ?? "0") + units(receipt.charged),
+          ),
+          records: (previous?.records ?? 0) + 1,
+        });
+      }
+      return {
+        totals: [...totals.values()],
+        scanned: page.items.length,
+        nextCursor: page.nextCursor,
+        complete: page.nextCursor === undefined,
+        window: { from: input.from, to: input.to },
+      };
+    },
+    batch: (input: {
+      customerId: string;
+      idempotencyKey: string;
+      events: Omit<UsageInput, "customerId">[];
+    }) =>
+      this.write(input, "usage.batch", input, async (tx) => {
+        assert(
+          input.events.length > 0 && input.events.length <= 100,
+          "invalid_batch_size",
+        );
+        assert(
+          new Set(input.events.map((e) => e.idempotencyKey)).size ===
+            input.events.length &&
+            input.events.every(
+              (e) => e.idempotencyKey !== input.idempotencyKey,
+            ),
+          "duplicate_batch_key",
+        );
+        const receipts: Usage[] = [];
+        for (const event of input.events) {
+          const usageInput = { ...event, customerId: input.customerId };
+          receipts.push(
+            await this.applyWrite(
+              tx,
+              usageInput,
+              await hash({ method: "usage.consume", payload: usageInput }),
+              (tx, key) => this.consume(tx, usageInput, key),
+            ),
+          );
+        }
+        return { receipts };
+      }),
     consume: (input: UsageInput) =>
       this.write(input, "usage.consume", input, (tx, key) =>
         this.consume(tx, input, key),
@@ -1020,32 +1139,17 @@ export class Billing {
           mapped?.item.pool && mapped.item.rate
             ? rateUsage(mapped.item.rate, input.amount, input.properties)
             : input.amount;
-        const allocations = await this.ledger.allocate(
+        return this.ledger.reserve(
           tx,
-          feature,
-          units(amount),
-          allocationEntity(mapped?.item, input.entityId),
-          true,
+          {
+            feature,
+            amount,
+            entityId: input.entityId,
+            poolScope: mapped?.item.poolScope,
+            expiresAt: input.expiresAt ?? this.now() + 15 * 60_000,
+          },
           key,
         );
-        let expiresAt = input.expiresAt ?? this.now() + 15 * 60_000;
-        assert(timestamp(expiresAt) > this.now(), "invalid_expiry");
-        for (const a of allocations) {
-          const grant = (await tx.get<Grant>("grants", a.grantId))!.data;
-          expiresAt = Math.min(expiresAt, grant.expiresAt ?? Infinity);
-        }
-        const reservation: Reservation = {
-          id: crypto.randomUUID(),
-          feature,
-          entityId: input.entityId,
-          amount,
-          allocations,
-          poolScope: mapped?.item.poolScope,
-          expiresAt,
-          status: "held",
-        };
-        await put(tx, "reservations", reservation.id, reservation, "held");
-        return reservation;
       }),
     increase: (input: WriteInput & { reservationId: string; amount: string }) =>
       this.write(input, "reservations.increase", input, async (tx, key) => {
@@ -1055,31 +1159,7 @@ export class Billing {
           input.reservationId,
         );
         assert(row?.state === "held", "reservation_not_held");
-        const r = row.data;
-        positive(input.amount);
-        const extra = await this.ledger.allocate(
-          tx,
-          r.feature,
-          units(input.amount),
-          r.poolScope === "customer" ? undefined : r.entityId,
-          true,
-          key,
-        );
-        let expiresAt = r.expiresAt;
-        for (const a of extra)
-          expiresAt = Math.min(
-            expiresAt,
-            (await tx.get<Grant>("grants", a.grantId))!.data.expiresAt ??
-              Infinity,
-          );
-        const next = {
-          ...r,
-          amount: decimal(units(r.amount) + units(input.amount)),
-          allocations: [...r.allocations, ...extra],
-          expiresAt,
-        };
-        await put(tx, "reservations", r.id, next, "held");
-        return next;
+        return this.ledger.increaseReservation(tx, row.data, input.amount, key);
       }),
     release: (input: WriteInput & { reservationId: string }) =>
       this.write(input, "reservations.release", input, async (tx) => {
@@ -1102,7 +1182,11 @@ export class Billing {
         assert(row, "reservation_not_found");
         nonnegative(input.amount);
         const r = row.data;
-        if (row.state !== "held" || units(input.amount) > units(r.amount)) {
+        if (
+          row.state !== "held" ||
+          !(await this.ledger.reservationFunded(tx, r)) ||
+          units(input.amount) > units(r.amount)
+        ) {
           const id = crypto.randomUUID();
           await this.enqueue(tx, id, "reservation_adjustment", {
             reservationId: r.id,
@@ -1113,30 +1197,13 @@ export class Billing {
           await put(tx, "work", id, work, "reconciliation");
           return { status: "reconciliation" as const, operationId: id };
         }
-        let left = units(input.amount);
-        const used: Allocation[] = [];
-        for (const a of r.allocations) {
-          const take = minimum(units(a.amount), left);
-          await this.ledger.adjustPosition(tx, a.grantId, 0n, -units(a.amount));
-          if (take > 0n) {
-            await this.ledger.movement(tx, a.grantId, take, key, "settle");
-            used.push({ grantId: a.grantId, amount: decimal(take) });
-            left -= take;
-          }
-        }
+        const usage = await this.ledger.settleReservation(
+          tx,
+          r,
+          input.amount,
+          key,
+        );
         const next = { ...r, status: "settled" as const };
-        await put(tx, "reservations", r.id, next, "settled");
-        const usage: Usage = {
-          id: crypto.randomUUID(),
-          feature: r.feature,
-          entityId: r.entityId,
-          quantity: input.amount,
-          charged: input.amount,
-          allocations: used,
-          createdAt: this.now(),
-          properties: { reservationId: r.id },
-        };
-        await put(tx, "usage", usage.id, usage);
         await this.afterUsage(
           tx,
           input.customerId,
@@ -1760,7 +1827,7 @@ export class Billing {
           "provider-lane",
         )
       )?.data;
-      if (row.data.kind !== "event" && lane) {
+      if (!["event", "workflow_timeout"].includes(row.data.kind) && lane) {
         if (lane.until > this.now()) return null;
         if (lane.operationId && lane.operationId !== id) {
           const interrupted = await tx.get<Work>("work", lane.operationId);
@@ -1786,7 +1853,7 @@ export class Billing {
           );
         if (outstanding) return null;
       }
-      if (row.data.kind !== "event")
+      if (!["event", "workflow_timeout"].includes(row.data.kind))
         await put(tx, "counters", "provider-lane", {
           owner: token,
           operationId: id,
@@ -1813,6 +1880,17 @@ export class Billing {
           >[0],
         );
         result = { delivered: true };
+      } else if (work.kind === "workflow_timeout") {
+        await this.store.atomic(scope, async (tx) => {
+          await this.ledger.materialize(tx);
+          await this.workflows.timeout(
+            tx,
+            customerId,
+            String(work.payload.workflowId),
+            work.payload.token as string | undefined,
+          );
+        });
+        result = { checked: true };
       } else if (work.kind === "webhook") {
         assert(this.options.provider, "provider_missing");
         const reconciled = await this.options.provider.reconcile(
@@ -1873,7 +1951,7 @@ export class Billing {
       await this.store.atomic(scope, async (tx) => {
         const current = (await tx.get<Work>("work", id))!.data;
         assert(current.leaseOwner === token, "lease_lost");
-        if (work.kind !== "event")
+        if (!["event", "workflow_timeout"].includes(work.kind))
           await put(tx, "counters", "provider-lane", {
             owner: token,
             until: 0,
@@ -1923,7 +2001,7 @@ export class Billing {
       await this.store.atomic(scope, async (tx) => {
         const current = (await tx.get<Work>("work", id))!.data;
         if (current.leaseOwner !== token) return;
-        if (work.kind !== "event")
+        if (!["event", "workflow_timeout"].includes(work.kind))
           await put(tx, "counters", "provider-lane", {
             owner: token,
             until: 0,
@@ -2220,6 +2298,8 @@ export class Billing {
             await Promise.all(
               [
                 "processing",
+                "internal_pending",
+                "internal_failed",
                 "meter_pending",
                 "meter_failed",
                 "pending",
@@ -2283,12 +2363,20 @@ export class Billing {
         const grantRows = await tx.list<Grant>("grants");
         const grants = grantRows.map((r) => r.data);
         const work = (await tx.list<Work>("work")).map((r) => r.data);
+        const workflows = await tx.list<{ status: string }>("workflows");
         const usage = (await tx.list<Usage>("usage"))
           .filter((r) => r.state !== "reversed")
           .map((r) => r.data);
         const blockers = work
-          .filter((w) => w.status !== "done" && w.kind !== "event")
+          .filter(
+            (w) =>
+              w.status !== "done" &&
+              !["event", "workflow_timeout"].includes(w.kind),
+          )
           .map((w) => `operation:${w.id}`);
+        for (const row of workflows)
+          if (["active", "reconciliation"].includes(row.state))
+            blockers.push(`active_workflow:${row.id}`);
         if (
           usage.some(
             (u) =>
@@ -2328,6 +2416,7 @@ export class Billing {
           "audit",
           "counters",
           "licenses",
+          "workflows",
         ] as const)
           archive[table] = await tx.list(table);
         return {
@@ -2430,6 +2519,7 @@ export class Billing {
               "audit",
               "counters",
               "licenses",
+              "workflows",
             ]);
             assert(
               s.archive.customers?.length === 1 &&

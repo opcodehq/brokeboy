@@ -18,7 +18,7 @@ const output = (value: unknown) =>
 async function main() {
   if (!command || command === "help" || command === "--help") {
     output(
-      "brokeboy init | schema --dialect postgres|mysql|sqlite|d1 [--sql] | doctor | catalog diff|apply|export | customer <id> | reconcile <id> | maintenance | export <id> | import <snapshot.json> [--apply]\nUse --config ./billing.config.ts. Config exports billing and optional catalog, expectedRevision.",
+      "brokeboy init | schema --dialect postgres|mysql|sqlite|d1 [--sql] | doctor | catalog diff|apply|export | customer <id> | workflows <customerId> [workflowId] [--entity id] | reconcile <id> | maintenance | export <id> | import <snapshot.json> [--apply]\nUse --config ./billing.config.ts. Config exports billing and optional catalog, expectedRevision.",
     );
     return;
   }
@@ -98,6 +98,24 @@ async function main() {
           }),
         );
       } else throw new Error("Choose catalog diff|apply|export.");
+      break;
+    }
+    case "workflows": {
+      const customerId = positionals[0] ?? "";
+      const workflowId = positionals[1];
+      output(
+        workflowId
+          ? await billing.workflows.get({
+              customerId,
+              workflowId,
+              entityId: flag("entity"),
+            })
+          : await billing.workflows.page({
+              customerId,
+              entityId: flag("entity"),
+              cursor: flag("cursor"),
+            }),
+      );
       break;
     }
     case "customer":
