@@ -16,6 +16,14 @@ Status: alpha implementation. This file distinguishes implemented behavior, loca
 
 The dedicated Node and Bun test commands intentionally use different SQLite drivers. Do not run the Node-native addon test under Bun.
 
+## Recorded alpha check (2026-10-27)
+
+- `bun run check`: 89 Bun tests, two Node native-SQLite tests and one Neon WebSocket driver test passed, including real local PostgreSQL 15 and MariaDB 10.5.
+- `bun run test:d1`: Miniflare/workerd contention, rollback and replay passed.
+- Isolated `npm install` of the packed artifact: core consumption and CLI SQL generation passed with none of React, Stripe or Drizzle installed.
+- GitHub Actions [run 40482806769](https://github.com/opcodehq/brokeboy/actions/runs/40482806769) could not start either matrix job. GitHub reported an account payment/spending-limit restriction. This is not a passing hosted CI result; Node 22, PostgreSQL 16 and MySQL 8 still require that run.
+- No Stripe sandbox credential was available, so merchant flows were not executed.
+
 ## Required external qualification before stable
 
 - Merchant-authorized Stripe sandbox flows: real Checkout completion, delayed payment methods, 3DS, tax, coupons, paid renewals, proration, pending updates, future schedules, partial refunds, disputes, and metered invoice closing.
@@ -29,6 +37,8 @@ The dedicated Node and Bun test commands intentionally use different SQLite driv
 ## Performance measurement
 
 Run `bun run benchmark`. The harness reports engine bundle size, database statement count, and latency for 200 consumptions against one in-memory SQLite customer/grant. It labels that environment explicitly. These numbers are not a networked-database throughput guarantee or production SLA.
+
+Recorded on this sandbox with Bun 1.3.10: 200 in-memory SQLite consumptions, 21 SQL statements per consumption, p50 0.47 ms and p95 0.83 ms. The browser-targeted root bundle was 52,849 bytes (15,378 gzip). Re-run rather than extrapolating these figures to a networked database.
 
 The benchmark initially exposed an export-stripping issue with a package metadata optimization in Bun 1.3.10. The metadata was removed and an executable-bundle regression test protects the actual exports.
 
