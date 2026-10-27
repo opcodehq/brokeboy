@@ -1,0 +1,403 @@
+import { put, type Transaction } from "../storage/contract.js";
+import { addInterval, canonical, hash } from "./catalog.js";
+import { decimal, minimum, nonnegative, units } from "./decimal.js";
+import { assert } from "./errors.js";
+import type {
+  Allocation,
+  Balance,
+  Grant,
+  Movement,
+  PlanItem,
+  PublishedPlan,
+  Reservation,
+  Subscription,
+} from "./types.js";
+
+type Position = { spent: string; held: string };
+export const allocationEntity = (
+  item: PlanItem | undefined,
+  entityId?: string,
+) => (item?.poolScope === "customer" ? undefined : entityId);
+
+export const entitlementThrough = (sub: Subscription) =>
+  sub.status === "past_due" ? (sub.graceThrough ?? 0) : sub.paidThrough;
+export const isEntitled = (sub: Subscription, now: number) =>
+  (["active", "trialing"].includes(sub.status) ||
+    (sub.status === "past_due" && !!sub.graceThrough)) &&
+  entitlementThrough(sub) > now;
+export async function registerFeatures(tx: Transaction, plan: PublishedPlan) {
+  for (const item of plan.items)
+    if (item.kind) {
+      const key = `feature-kind:${item.feature}`;
+      const old = await tx.get<{ kind: string }>("counters", key);
+      if (old) assert(old.data.kind === item.kind, "feature_kind_conflict");
+      else await put(tx, "counters", key, { kind: item.kind });
+    }
+}
+export class Ledger {
+  constructor(readonly now: () => number) {}
+  async position(tx: Transaction, grantId: string): Promise<Position> {
+    return (
+      (await tx.get<Position>("counters", `grant:${grantId}`))?.data ?? {
+        spent: "0",
+        held: "0",
+      }
+    );
+  }
+  async adjustPosition(
+    tx: Transaction,
+    grantId: string,
+    spent: bigint,
+    held: bigint,
+  ) {
+    const previous = await this.position(tx, grantId);
+    const next = {
+      spent: decimal(units(previous.spent) + spent),
+      held: decimal(units(previous.held) + held),
+    };
+    assert(
+      units(next.spent) >= 0n && units(next.held) >= 0n,
+      "ledger_invariant",
+    );
+    await put(tx, "counters", `grant:${grantId}`, next);
+  }
+  async movement(
+    tx: Transaction,
+    grantId: string,
+    amount: bigint,
+    operationId: string,
+    reason: string,
+    reverses?: string,
+  ) {
+    const id = crypto.randomUUID();
+    await put(tx, "movements", id, {
+      id,
+      grantId,
+      amount: decimal(amount),
+      operationId,
+      createdAt: this.now(),
+      reason,
+      reverses,
+    } satisfies Movement);
+    await this.adjustPosition(tx, grantId, amount, 0n);
+  }
+  async grant(tx: Transaction, grant: Grant) {
+    const previous = await tx.get<Grant>("grants", grant.id);
+    if (previous) {
+      assert(
+        canonical({ ...previous.data, createdAt: 0 }) ===
+          canonical({ ...grant, createdAt: 0 }),
+        "grant_conflict",
+      );
+      return previous.data;
+    }
+    nonnegative(grant.amount);
+    await put(tx, "grants", grant.id, grant);
+    return grant;
+  }
+  async grantPeriod(
+    tx: Transaction,
+    subscription: Subscription,
+    item: PlanItem,
+    start: number,
+    end: number,
+  ) {
+    const id = (
+      await hash({
+        subscription: subscription.id,
+        feature: item.feature,
+        start: item.reset === "never" ? 0 : start,
+        version: subscription.plan.version,
+        phase:
+          subscription.status === "trialing"
+            ? "trial"
+            : subscription.status === "past_due"
+              ? "grace"
+              : "paid",
+        quantity: subscription.quantity,
+      })
+    ).slice(0, 48);
+    if (await tx.get("grants", id)) return;
+    const included =
+      (units(
+        subscription.status === "trialing"
+          ? (subscription.plan.trialIncluded?.[item.feature] ?? "0")
+          : subscription.status === "past_due"
+            ? (subscription.plan.graceIncluded?.[item.feature] ?? "0")
+            : (item.included ?? "0"),
+      ) *
+        units(subscription.quantity)) /
+      1_000_000n;
+    const offset =
+      subscription.provisioningOffset &&
+      start < subscription.provisioningOffset.until
+        ? units(
+            subscription.provisioningOffset.granted[
+              item.pool ?? item.feature
+            ] ?? "0",
+          )
+        : 0n;
+    await this.grant(tx, {
+      id,
+      feature: item.pool ?? item.feature,
+      entityId: allocationEntity(item, subscription.entityId),
+      amount: decimal(included > offset ? included - offset : 0n),
+      expiresAt:
+        item.reset === "never" || subscription.plan.kind === "one_time"
+          ? undefined
+          : end,
+      priority: 0,
+      origin:
+        subscription.plan.kind === "one_time" ? "purchase" : "subscription",
+      sourceId: subscription.purchaseId ?? subscription.id,
+      createdAt: start,
+    });
+  }
+  async materialize(tx: Transaction) {
+    const now = this.now();
+    for (const row of await tx.list<Subscription>("subscriptions", "active")) {
+      const sub = row.data;
+      if (sub.cancelAtPeriodEnd && sub.periodEnd <= now) {
+        await put(
+          tx,
+          "subscriptions",
+          sub.id,
+          {
+            ...sub,
+            status: "ended",
+            paidThrough: Math.min(sub.paidThrough, sub.periodEnd),
+          },
+          "ended",
+        );
+        continue;
+      }
+      const due = sub.scheduledPlans
+        ?.filter((phase) => phase.start <= now)
+        .at(-1);
+      if (due) {
+        await registerFeatures(tx, due.plan);
+        sub.plan = due.plan;
+        sub.periodStart = due.start;
+        sub.periodEnd = due.end;
+        sub.scheduledPlans = sub.scheduledPlans?.filter(
+          (phase) => phase.start > now,
+        );
+        sub.provisioningOffset = undefined;
+        await put(tx, "subscriptions", sub.id, sub);
+      }
+      if (!isEntitled(sub, now)) continue;
+      for (const item of sub.plan.items) {
+        if (item.included === undefined) continue;
+        const reset = item.reset ?? sub.plan.interval ?? "month";
+        const origin = new Date(sub.periodStart),
+          current = new Date(Math.min(now, entitlementThrough(sub) - 1));
+        const elapsed =
+          reset === "year"
+            ? current.getUTCFullYear() - origin.getUTCFullYear()
+            : (current.getUTCFullYear() - origin.getUTCFullYear()) * 12 +
+              current.getUTCMonth() -
+              origin.getUTCMonth();
+        let index =
+          reset === "never"
+            ? 0
+            : Math.max(0, elapsed - (item.rollover?.periods ?? 0) - 1);
+        let start =
+          index === 0
+            ? sub.periodStart
+            : addInterval(sub.periodStart, reset as "month" | "year", index);
+        while (
+          start <= now &&
+          start < entitlementThrough(sub) &&
+          index < 1200
+        ) {
+          const end =
+            reset === "never" || sub.plan.kind === "one_time"
+              ? Number.MAX_SAFE_INTEGER
+              : addInterval(sub.periodStart, reset, index + 1);
+          await this.grantPeriod(
+            tx,
+            sub,
+            item,
+            start,
+            Math.min(end, entitlementThrough(sub)),
+          );
+          if (end > now || reset === "never" || sub.plan.kind === "one_time")
+            break;
+          start = end;
+          index++;
+        }
+      }
+    }
+    for (const row of await tx.list<Reservation>("reservations", "held"))
+      if (row.data.expiresAt <= now)
+        await this.finishReservation(tx, row.data, "expired");
+    for (const row of await tx.list<Grant>("grants", "active")) {
+      const grant = row.data;
+      if (grant.expiresAt === undefined || grant.expiresAt > now) continue;
+      const sub = (await tx.get<Subscription>("subscriptions", grant.sourceId))
+        ?.data;
+      const item = sub?.plan.items.find(
+        (i) => (i.pool ?? i.feature) === grant.feature,
+      );
+      const position = await this.position(tx, grant.id);
+      const left =
+        units(grant.amount) - units(position.spent) - units(position.held);
+      if (
+        item?.rollover &&
+        grant.origin === "subscription" &&
+        left > 0n &&
+        sub &&
+        sub.paidThrough > grant.expiresAt
+      ) {
+        let outstanding = 0n;
+        for (const { data: rolled } of await tx.list<Grant>("grants", "active"))
+          if (
+            rolled.origin === "rollover" &&
+            rolled.feature === grant.feature &&
+            rolled.entityId === grant.entityId &&
+            (rolled.expiresAt ?? 0) > now
+          ) {
+            const p = await this.position(tx, rolled.id);
+            outstanding +=
+              units(rolled.amount) - units(p.spent) - units(p.held);
+          }
+        const remainingCap = units(item.rollover.maximum) - outstanding;
+        const cap = remainingCap > 0n ? remainingCap : 0n;
+        const expiresAt = addInterval(
+          grant.expiresAt,
+          item.reset === "year" ? "year" : "month",
+          item.rollover.periods,
+        );
+        if (expiresAt > now && cap > 0n)
+          await this.grant(tx, {
+            ...grant,
+            id: `roll:${grant.id}`,
+            amount: decimal(minimum(left, cap)),
+            createdAt: grant.expiresAt,
+            expiresAt,
+            origin: "rollover",
+          });
+      }
+      await put(tx, "grants", grant.id, grant, "expired");
+    }
+  }
+  async usableGrants(
+    tx: Transaction,
+    feature: string,
+    entityId?: string,
+  ): Promise<Grant[]> {
+    const result: Grant[] = [];
+    for (const { data: g } of await tx.list<Grant>("grants", "active")) {
+      if (
+        g.feature !== feature ||
+        g.entityId !== entityId ||
+        (g.expiresAt !== undefined && g.expiresAt <= this.now())
+      )
+        continue;
+      if (g.origin === "subscription" || g.origin === "rollover") {
+        const source = (await tx.get<Subscription>("subscriptions", g.sourceId))
+          ?.data;
+        if (!source || !isEntitled(source, this.now())) continue;
+      }
+      result.push(g);
+    }
+    return result;
+  }
+  async balance(
+    tx: Transaction,
+    feature: string,
+    entityId?: string,
+  ): Promise<Balance> {
+    let granted = 0n,
+      spent = 0n,
+      held = 0n;
+    for (const grant of await this.usableGrants(tx, feature, entityId)) {
+      const p = await this.position(tx, grant.id);
+      granted += units(grant.amount);
+      spent += units(p.spent);
+      held += units(p.held);
+    }
+    return {
+      feature,
+      granted: decimal(granted),
+      spent: decimal(spent),
+      reserved: decimal(held),
+      available: decimal(granted - spent - held),
+    };
+  }
+  async allocate(
+    tx: Transaction,
+    feature: string,
+    amount: bigint,
+    entityId?: string,
+    hold = false,
+    operation = "",
+  ): Promise<Allocation[]> {
+    const grants = (await this.usableGrants(tx, feature, entityId)).sort(
+      (a, b) =>
+        a.priority - b.priority ||
+        (a.expiresAt ?? Infinity) - (b.expiresAt ?? Infinity) ||
+        a.createdAt - b.createdAt ||
+        a.id.localeCompare(b.id),
+    );
+    const result: Allocation[] = [];
+    let remaining = amount;
+    for (const grant of grants) {
+      const p = await this.position(tx, grant.id);
+      const left = units(grant.amount) - units(p.spent) - units(p.held);
+      const take = minimum(left, remaining);
+      if (take <= 0n) continue;
+      if (hold) await this.adjustPosition(tx, grant.id, 0n, take);
+      else await this.movement(tx, grant.id, take, operation, "consume");
+      result.push({ grantId: grant.id, amount: decimal(take) });
+      remaining -= take;
+      if (remaining === 0n) break;
+    }
+    assert(remaining === 0n, "insufficient_balance");
+    return result;
+  }
+  async finishReservation(
+    tx: Transaction,
+    reservation: Reservation,
+    status: "released" | "expired",
+  ) {
+    for (const allocation of reservation.allocations)
+      await this.adjustPosition(
+        tx,
+        allocation.grantId,
+        0n,
+        -units(allocation.amount),
+      );
+    const next = { ...reservation, status };
+    await put(tx, "reservations", reservation.id, next, status);
+    return next;
+  }
+  async reconcile(tx: Transaction) {
+    const movements = await tx.list<Movement>("movements");
+    const reservations = await tx.list<Reservation>("reservations", "held");
+    const mismatches = [];
+    for (const { data: g } of await tx.list<Grant>("grants")) {
+      const spent = movements
+        .filter((m) => m.data.grantId === g.id)
+        .reduce((n, m) => n + units(m.data.amount), 0n);
+      const held = reservations
+        .flatMap((r) => r.data.allocations)
+        .filter((a) => a.grantId === g.id)
+        .reduce((n, a) => n + units(a.amount), 0n);
+      const p = await this.position(tx, g.id);
+      if (
+        units(p.spent) !== spent ||
+        units(p.held) !== held ||
+        spent < 0n ||
+        held < 0n ||
+        spent + held > units(g.amount)
+      )
+        mismatches.push({
+          grantId: g.id,
+          expected: { spent: decimal(spent), held: decimal(held) },
+          actual: p,
+        });
+    }
+    return { consistent: mismatches.length === 0, mismatches };
+  }
+}
