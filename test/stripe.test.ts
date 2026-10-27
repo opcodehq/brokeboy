@@ -143,6 +143,8 @@ test("pack checkout records identical purchase identity on all payment objects",
     },
   };
   await provider.execute(command);
+  expect(calls.at(-1)?.body.get("customer_update[name]")).toBe("auto");
+  expect(calls.at(-1)?.body.get("customer_update[address]")).toBe("auto");
   const body = calls.find((call) =>
     call.url.includes("/checkout/sessions"),
   )!.body;

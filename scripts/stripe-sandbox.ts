@@ -10,13 +10,31 @@ if (!key || !/^(sk|rk)_test_/.test(key))
 const stripe = new Stripe(key, { maxNetworkRetries: 1 });
 const id = `sandbox-${crypto.randomUUID()}`,
   secret = `fixture-${crypto.randomUUID()}`;
+let now = Date.now();
+const provider = stripeProvider({
+  client: stripe,
+  webhookSecret: secret,
+  cryptoProvider: Stripe.createSubtleCryptoProvider(),
+});
 const billing = brokeboy({
+  now: () => now,
   database: memoryAdapter(),
-  provider: stripeProvider({
-    client: stripe,
-    webhookSecret: secret,
-    cryptoProvider: Stripe.createSubtleCryptoProvider(),
-  }),
+  provider: {
+    ...provider,
+    execute: async (command) => {
+      try {
+        return await provider.execute(command);
+      } catch (error) {
+        console.error(
+          "Sandbox provider failure:",
+          error instanceof Error
+            ? error.message.replaceAll(key, "[REDACTED]")
+            : "unknown",
+        );
+        throw error;
+      }
+    },
+  },
 });
 const catalog = defineCatalog({
   features: [{ id: "credits", kind: "consumable" }],
@@ -34,7 +52,9 @@ const catalog = defineCatalog({
 await billing.catalog.publish({ catalog, expectedRevision: 0 });
 let customerId: string | undefined,
   subscriptionId: string | undefined,
-  sessionId: string | undefined;
+  sessionId: string | undefined,
+  priceId: string | undefined,
+  productId: string | undefined;
 const clock = await stripe.testHelpers.testClocks.create({
   frozen_time: Math.floor(Date.now() / 1000),
   name: id,
@@ -45,9 +65,11 @@ try {
     metadata: { brokeboy_customer: id, brokeboy_environment: "test" },
   });
   customerId = customer.id;
-  await stripe.paymentMethods.attach("pm_card_visa", { customer: customerId });
+  const paymentMethod = await stripe.paymentMethods.attach("pm_card_visa", {
+    customer: customerId,
+  });
   await stripe.customers.update(customerId, {
-    invoice_settings: { default_payment_method: "pm_card_visa" },
+    invoice_settings: { default_payment_method: paymentMethod.id },
   });
   await billing.customers.create({
     id,
@@ -67,11 +89,14 @@ try {
   });
   const price = session.line_items?.data[0]?.price;
   assert(price);
+  priceId = price.id;
+  productId =
+    typeof price.product === "string" ? price.product : price.product.id;
   const plan = await billing.catalog.get(id);
   const subscription = await stripe.subscriptions.create({
     customer: customerId,
     items: [{ price: price.id }],
-    default_payment_method: "pm_card_visa",
+    default_payment_method: paymentMethod.id,
     metadata: {
       brokeboy_customer: id,
       brokeboy_environment: "test",
@@ -122,22 +147,38 @@ try {
   );
   if (process.env.STRIPE_TEST_CLOCK_ADVANCE === "true") {
     const end = subscription.items.data[0]!.current_period_end;
-    await stripe.testHelpers.testClocks.advance(clock.id, {
-      frozen_time: end + 60,
-    });
-    for (let attempt = 0; attempt < 45; attempt++) {
-      if (
-        (await stripe.testHelpers.testClocks.retrieve(clock.id)).status ===
-        "ready"
-      )
-        break;
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    async function advanceClock(target: number) {
+      await stripe.testHelpers.testClocks.advance(clock.id, {
+        frozen_time: target,
+      });
+      let ready = false;
+      for (let attempt = 0; attempt < 45; attempt++) {
+        if (
+          (await stripe.testHelpers.testClocks.retrieve(clock.id)).status ===
+          "ready"
+        ) {
+          ready = true;
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+      assert(ready, "Stripe test clock did not finish advancing");
+      now = target * 1000;
     }
+    await advanceClock(end + 60);
+    // Renewal invoices have a draft interval before automatic collection.
+    await advanceClock(end + 2 * 60 * 60);
     const renewed = await stripe.subscriptions.retrieve(subscription.id, {
       expand: ["latest_invoice"],
     });
     assert.equal((renewed.latest_invoice as Stripe.Invoice).status, "paid");
+    assert(renewed.items.data[0]!.current_period_start >= end);
     await deliver(renewed, `evt_${crypto.randomUUID()}`);
+    assert.equal(
+      (await billing.credits.balance({ customerId: id, feature: "credits" }))
+        .available,
+      "100",
+    );
   }
   assert.equal((await billing.credits.reconcile(id)).consistent, true);
   console.log(
@@ -150,6 +191,9 @@ try {
         "allowance provisioning",
         "usage",
         "ledger reconciliation",
+        ...(process.env.STRIPE_TEST_CLOCK_ADVANCE === "true"
+          ? ["test-clock paid renewal and renewed allowance"]
+          : []),
       ],
       clockAdvanced: process.env.STRIPE_TEST_CLOCK_ADVANCE === "true",
       note: "This does not verify delivery from a registered public webhook endpoint.",
@@ -162,4 +206,8 @@ try {
     await stripe.subscriptions.cancel(subscriptionId).catch(() => {});
   if (customerId) await stripe.customers.del(customerId).catch(() => {});
   await stripe.testHelpers.testClocks.del(clock.id).catch(() => {});
+  if (priceId)
+    await stripe.prices.update(priceId, { active: false }).catch(() => {});
+  if (productId)
+    await stripe.products.update(productId, { active: false }).catch(() => {});
 }

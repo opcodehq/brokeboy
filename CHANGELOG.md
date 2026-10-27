@@ -5,3 +5,5 @@
 Initial embedded billing implementation: transactional credits and reservations, versioned pricing, subscription and Stripe orchestration, Drizzle schemas and database adapters, customer/entity entitlements, spending controls, reconciliation, migration archives, CLI, and optional React toolkit.
 
 This is a prerelease. External Stripe payment scenarios and hosted edge integrations must satisfy the qualification gates before a stable release.
+
+- Stripe sandbox qualification: fix existing-customer Checkout tax-ID collection, use attached payment-method IDs, and verify paid test-clock renewals and renewed allowances.

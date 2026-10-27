@@ -22,7 +22,7 @@ The dedicated Node and Bun test commands intentionally use different SQLite driv
 - `bun run test:d1`: Miniflare/workerd contention, rollback and replay passed.
 - Isolated `npm install` of the packed artifact: core consumption and CLI SQL generation passed with none of React, Stripe or Drizzle installed.
 - GitHub Actions [run 40482806769](https://github.com/opcodehq/brokeboy/actions/runs/40482806769) could not start either matrix job. GitHub reported an account payment/spending-limit restriction. This is not a passing hosted CI result; Node 22, PostgreSQL 16 and MySQL 8 still require that run.
-- No Stripe sandbox credential was available, so merchant flows were not executed.
+- Merchant-authorized Stripe sandbox run passed after credentials were configured: Checkout creation, actual initial invoice payment, signed local ingestion of retrieved state, allowance provisioning, consumption, test-clock renewal payment, renewed allowance and ledger reconciliation. Checkout completion in a browser and public webhook delivery were not exercised. The run exposed and fixed required customer name/address updates for Checkout tax-ID collection.
 
 ## Required external qualification before stable
 

@@ -278,6 +278,7 @@ export function stripeProvider(options: StripeOptions): PaymentProvider {
         const session = await client.checkout.sessions.create(
           {
             customer,
+            customer_update: { name: "auto", address: "auto" },
             mode: oneTime ? "payment" : "subscription",
             line_items: lineItems,
             success_url: url(input.successUrl),
