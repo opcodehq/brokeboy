@@ -25,7 +25,7 @@ The dedicated Node and Bun test commands intentionally use different SQLite driv
 - `bun run check`: 127 Bun tests, three Node native-SQLite tests and one Neon WebSocket driver test passed, including real local PostgreSQL 15 and MariaDB 10.5.
 - `bun run test:d1`: Two Miniflare/workerd tests passed: contention/rollback/replay with workflow claims and settlement, plus bundled Effect layers running inside workerd against a native D1 binding.
 - Isolated `npm install` of the packed artifact: promise consumption, native Effect workflow execution, declaration type checks and CLI commands passed with none of React, Stripe or Drizzle installed.
-- GitHub Actions [run 40482806769](https://github.com/opcodehq/brokeboy/actions/runs/40482806769) could not start either matrix job. GitHub reported an account payment/spending-limit restriction. This is not a passing hosted CI result; Node 22, PostgreSQL 16 and MySQL 8 still require that run.
+- GitHub Actions [run 40654326007](https://github.com/opcodehq/brokeboy/actions/runs/40654326007) could not start either matrix job. GitHub reported an account payment/spending-limit restriction. This is not a passing hosted CI result; Node 22, PostgreSQL 16 and MySQL 8 still require that run.
 - Merchant-authorized Stripe sandbox run passed after credentials were configured: Checkout creation, actual initial invoice payment, signed local ingestion of retrieved state, allowance provisioning, consumption, test-clock renewal payment, renewed allowance and ledger reconciliation. Checkout completion in a browser and public webhook delivery were not exercised. The run exposed and fixed required customer name/address updates for Checkout tax-ID collection.
 
 ## Required external qualification before stable
