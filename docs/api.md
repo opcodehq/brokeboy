@@ -24,7 +24,7 @@
 
 History `list` methods return the first 100 records. Use `page` with `limit` and the returned `nextCursor` to continue.
 
-Published TypeScript declarations specify the argument and return types. Server-side methods trust the application's customer/actor context. Do not forward raw browser bodies into them.
+Published TypeScript declarations specify the argument and return types. The default SDK returns promises; native services and layers are available through `brokeboy/effect`, with [integration details](effect.md). Server-side methods trust the application's customer/actor context. Do not forward raw browser bodies into them.
 
 The `workflows` group provides `create`, `get`, `page`, `claim`, `heartbeat`, `increase`, `complete`, `fail`, `resolve`, and `cancel`. See [workflow semantics](workflows.md) for atomic budgets, leases, dependency graphs, and recovery.
 

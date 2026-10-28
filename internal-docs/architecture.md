@@ -1,6 +1,6 @@
 # Embedded billing architecture
 
-The engine has no network or runtime-specific imports. `core/catalog` owns validation, canonical versions, calendar arithmetic and rating; `core/ledger` owns allocation, movements, reservations and allowance materialization; `core/engine` composes customer, subscription and operation APIs. Integration entry points import their own optional peers.
+The engine composes native Effect programs and has no network or runtime-specific imports. `billing` owns the promise facade, `effect` owns service/layer composition, and storage/provider bridges adapt legacy integrations at their boundary. `core/catalog` owns validation, canonical versions, calendar arithmetic and rating; `core/ledger` owns allocation, movements, reservations and allowance materialization; `core/engine` composes customer, subscription and operation APIs. Integration entry points import their own optional peers.
 
 Money, credit quantities and feature quantities remain different domain concepts. Storage uses decimal strings; arithmetic uses scaled integers. A grant records original allowance and provenance. Append-only movements record spending and reversals. Reservation allocations hold balances. Counter projections accelerate reads and can be compared against movements and held reservations.
 
@@ -17,3 +17,5 @@ The SQL adapter deliberately validates supported client capabilities. D1 does no
 The package assumes an application's configured Stripe account and database belong to that application. Multi-merchant Stripe Connect routing is a separate future integration. Infrastructure resources and external usage evidence remain the integrating application's responsibility.
 
 `core/workflows` owns bounded dependency graphs, customer-scoped atomic funding, worker fencing, checkpoints and reconciliation. It uses the same ledger reservation primitives as the standalone reservation APIs. External jobs execute in the application. Durable internal timeout work bypasses the payment-provider lane; no payment connectivity is needed to expire leases. Workflow state is persisted in its own table and included in customer archives.
+
+Effect manages concurrency, tagged errors, time and finalization. Driver calls that cannot abort are masked until completion; transaction finalizers roll back before releasing connections. Ambiguous payment interruption leaves durable leases for recovery. Core arithmetic and persisted billing formats are unchanged. See [Effect integration](../docs/effect.md).

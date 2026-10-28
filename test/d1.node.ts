@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { Miniflare } from "miniflare";
 import { drizzleAdapter, migrationSQL } from "../dist/drizzle.js";
 import { brokeboy } from "../dist/index.js";
@@ -105,5 +110,52 @@ test("D1 atomic batches survive contention, replay, and rollback", async () => {
     assert.equal((await billing.credits.reconcile("d1")).consistent, true);
   } finally {
     await mf.dispose();
+  }
+});
+
+test("bundled Effect layers execute inside workerd against a native D1 binding", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "brokeboy-effect-worker-"));
+  let mf: Miniflare | undefined;
+  try {
+    const bundle = join(directory, "worker.mjs");
+    execFileSync(
+      "bun",
+      [
+        "build",
+        fileURLToPath(new URL("./fixtures/effect-worker.ts", import.meta.url)),
+        "--target=browser",
+        `--outfile=${bundle}`,
+      ],
+      { stdio: "pipe" },
+    );
+    mf = new Miniflare({
+      modules: true,
+      scriptPath: bundle,
+      modulesRoot: directory,
+      rootPath: directory,
+      compatibilityDate: "2026-06-01",
+      d1Databases: ["DB"],
+    });
+    const db = await mf.getD1Database("DB");
+    for (const sql of migrationSQL("d1")) await db.prepare(sql).run();
+    for (const [key, available] of [
+      ["one", "7"],
+      ["one", "7"],
+      ["two", "4"],
+    ]) {
+      const response = await mf.dispatchFetch(
+        `https://example.test/?key=${key}`,
+      );
+      assert.equal(response.status, 200);
+      const result = (await response.json()) as {
+        balance: { available: string };
+        ledger: { consistent: boolean };
+      };
+      assert.equal(result.balance.available, available);
+      assert.equal(result.ledger.consistent, true);
+    }
+  } finally {
+    await mf?.dispose();
+    await rm(directory, { recursive: true, force: true });
   }
 });

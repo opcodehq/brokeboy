@@ -1,11 +1,14 @@
-export class BillingError extends Error {
-  readonly name = "BillingError";
-  constructor(
-    readonly code: string,
-    message: string = code,
-    readonly details?: unknown,
-  ) {
-    super(message);
+import * as Schema from "effect/Schema";
+export class BillingError extends Schema.TaggedError<BillingError>()(
+  "BillingError",
+  {
+    code: Schema.String,
+    message: Schema.String,
+    details: Schema.optionalKey(Schema.Unknown),
+  },
+) {
+  constructor(code: string, message = code, details?: unknown) {
+    super({ code, message, details });
   }
 }
 export function assert(

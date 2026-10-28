@@ -5,6 +5,7 @@ Status: alpha implementation. This file distinguishes implemented behavior, loca
 ## Local verification
 
 - TypeScript strict checks, Biome, generated-schema drift checks and package compilation.
+- Native Effect laziness, tagged failures, service/layer wiring, virtual clock deadlines, interrupted transactions, semaphore waiters, SQL command cancellation, rollback quarantine, HTTP stream cleanup, payment lease recovery and compatibility adapters.
 - Shared behavioral contracts on memory, Bun SQLite, PostgreSQL 15 and the mysql2 adapter against MariaDB 10.5.
 - Native Node SQLite restart/replay, backup/restore on a new connection and additive workflow-schema upgrades.
 - Shared workflow contracts on memory, Bun SQLite, PostgreSQL and MySQL: concurrent claims, restart settlement, per-event batch replay and atomic rollback.
@@ -19,11 +20,11 @@ Status: alpha implementation. This file distinguishes implemented behavior, loca
 
 The dedicated Node and Bun test commands intentionally use different SQLite drivers. Do not run the Node-native addon test under Bun.
 
-## Recorded alpha check (2026-10-27)
+## Recorded alpha check (2026-10-28)
 
-- `bun run check`: 115 Bun tests, three Node native-SQLite tests and one Neon WebSocket driver test passed, including real local PostgreSQL 15 and MariaDB 10.5.
-- `bun run test:d1`: Miniflare/workerd contention, rollback, replay, concurrent workflow claims and stage settlement passed.
-- Isolated `npm install` of the packed artifact: core consumption, workflow execution and CLI SQL generation passed with none of React, Stripe or Drizzle installed.
+- `bun run check`: 127 Bun tests, three Node native-SQLite tests and one Neon WebSocket driver test passed, including real local PostgreSQL 15 and MariaDB 10.5.
+- `bun run test:d1`: Two Miniflare/workerd tests passed: contention/rollback/replay with workflow claims and settlement, plus bundled Effect layers running inside workerd against a native D1 binding.
+- Isolated `npm install` of the packed artifact: promise consumption, native Effect workflow execution, declaration type checks and CLI commands passed with none of React, Stripe or Drizzle installed.
 - GitHub Actions [run 40482806769](https://github.com/opcodehq/brokeboy/actions/runs/40482806769) could not start either matrix job. GitHub reported an account payment/spending-limit restriction. This is not a passing hosted CI result; Node 22, PostgreSQL 16 and MySQL 8 still require that run.
 - Merchant-authorized Stripe sandbox run passed after credentials were configured: Checkout creation, actual initial invoice payment, signed local ingestion of retrieved state, allowance provisioning, consumption, test-clock renewal payment, renewed allowance and ledger reconciliation. Checkout completion in a browser and public webhook delivery were not exercised. The run exposed and fixed required customer name/address updates for Checkout tax-ID collection.
 
@@ -41,10 +42,12 @@ The dedicated Node and Bun test commands intentionally use different SQLite driv
 
 Run `bun run benchmark`. The harness reports engine bundle size, database statement count, and latency for 200 consumptions against one in-memory SQLite customer/grant. It labels that environment explicitly. These numbers are not a networked-database throughput guarantee or production SLA.
 
-Recorded on this sandbox with Bun 1.3.10: 200 in-memory SQLite consumptions, 21 SQL statements per consumption, p50 0.40 ms and p95 1.11 ms. The browser-targeted root bundle was 67,472 bytes (19,147 gzip). Re-run rather than extrapolating these figures to a networked database.
+Alpha.2 measurement on this Linux x86_64 sandbox with Bun 1.3.10 (Node checks use 24.22.1): 200 in-memory SQLite consumptions, one customer/one grant, 21 SQL statements per consumption, p50 2.13 ms and p95 6.83 ms. The minified browser-targeted root bundle is 167,298 bytes (50,970 gzip).
+
+The recorded alpha.1 figures were p50 0.40 ms, p95 1.11 ms and 67,472 bundle bytes (19,147 gzip). Effect introduces runtime and bundle overhead; this migration does not claim a latency improvement. These single-process microbenchmarks are not controlled production or networked-database comparisons. Backend subpath imports reduced an intermediate Effect bundle from roughly 408 KB to 167 KB. Re-run in the integrating application's environment before setting throughput or latency expectations.
 
 The benchmark initially exposed an export-stripping issue with a package metadata optimization in Bun 1.3.10. The metadata was removed and an executable-bundle regression test protects the actual exports.
 
 ## Publication policy
 
-The current package is `0.1.0-alpha.1`. Prerelease source and package artifacts can be reviewed and tested independently. Do not label a release stable while external gates remain open. There is no hosted billing service or paid feature edition.
+The current package is `0.1.0-alpha.2`. Prerelease source and package artifacts can be reviewed and tested independently. Do not label a release stable while external gates remain open. There is no hosted billing service or paid feature edition.

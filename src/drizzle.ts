@@ -1,4 +1,14 @@
+import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
+import * as Semaphore from "effect/Semaphore";
+import {
+  type BillingEffect,
+  database,
+  storageSync,
+  task,
+} from "./core/effect.js";
 import { assert, BillingError } from "./core/errors.js";
+import { promiseStorage } from "./storage/bridge.js";
 import {
   dueAt,
   type Row,
@@ -7,14 +17,14 @@ import {
   type Table,
   type Transaction,
   tables,
-} from "./storage/contract.js";
+} from "./storage/native.js";
 export type Dialect = "postgres" | "mysql" | "sqlite" | "d1";
 export type AdapterOptions = {
   dialect: Dialect;
   retries?: number;
   busyTimeout?: number;
 };
-type Query = (sql: string, parameters?: unknown[]) => Promise<any[]>;
+type Query = (sql: string, parameters?: unknown[]) => BillingEffect<any[]>;
 const names = new Set<string>(tables);
 function name(table: Table): string {
   assert(names.has(table), "invalid_table");
@@ -50,82 +60,89 @@ function recordTransaction(
   query: Query,
 ): Transaction {
   return {
-    async get<T>(table: Table, id: string) {
-      const rows = await query(
-        `SELECT id,state,data FROM ${name(table)} WHERE scope=${placeholder(dialect, 1)} AND id=${placeholder(dialect, 2)}`,
-        [scope, id],
-      );
-      const row = rows[0];
-      return row
-        ? { id: row.id, state: row.state, data: JSON.parse(row.data) as T }
-        : null;
+    get<T>(table: Table, id: string) {
+      return task(function* () {
+        const rows = yield* query(
+          `SELECT id,state,data FROM ${name(table)} WHERE scope=${placeholder(dialect, 1)} AND id=${placeholder(dialect, 2)}`,
+          [scope, id],
+        );
+        const row = rows[0];
+        return row
+          ? { id: row.id, state: row.state, data: JSON.parse(row.data) as T }
+          : null;
+      });
     },
-    async list<T>(table: Table, state?: string) {
-      const rows = await query(
-        `SELECT id,state,data FROM ${name(table)} WHERE scope=${placeholder(dialect, 1)}${state === undefined ? "" : ` AND state=${placeholder(dialect, 2)}`} ORDER BY id`,
-        state === undefined ? [scope] : [scope, state],
-      );
-      return rows.map((r) => ({
-        id: r.id,
-        state: r.state,
-        data: JSON.parse(r.data) as T,
-      }));
+    list<T>(table: Table, state?: string) {
+      return task(function* () {
+        const rows = yield* query(
+          `SELECT id,state,data FROM ${name(table)} WHERE scope=${placeholder(dialect, 1)}${state === undefined ? "" : ` AND state=${placeholder(dialect, 2)}`} ORDER BY id`,
+          state === undefined ? [scope] : [scope, state],
+        );
+        return rows.map((r) => ({
+          id: r.id,
+          state: r.state,
+          data: JSON.parse(r.data) as T,
+        }));
+      });
     },
-    async page<T>(
-      table: Table,
-      page: import("./storage/contract.js").PageQuery,
-    ) {
-      assert(
-        Number.isSafeInteger(page.limit) &&
-          page.limit > 0 &&
-          page.limit <= 1001,
-        "invalid_limit",
-      );
-      const values: unknown[] = [scope, page.after ?? ""];
-      let filter = "";
-      if (page.state !== undefined) {
-        values.push(page.state);
-        filter = ` AND state=${placeholder(dialect, values.length)}`;
-      }
-      if (page.dueBefore !== undefined) {
-        assert(table === "work", "invalid_due_query");
-        values.push(page.dueBefore);
-        filter += ` AND due<=${placeholder(dialect, values.length)}`;
-      }
-      values.push(page.limit);
-      const rows = await query(
-        `SELECT id,state,data FROM ${name(table)} WHERE scope=${placeholder(dialect, 1)} AND id>${placeholder(dialect, 2)}${filter} ORDER BY id LIMIT ${placeholder(dialect, values.length)}`,
-        values,
-      );
-      return rows.map((row) => ({
-        id: row.id,
-        state: row.state,
-        data: JSON.parse(row.data) as T,
-      }));
+    page<T>(table: Table, page: import("./storage/native.js").PageQuery) {
+      return task(function* () {
+        assert(
+          Number.isSafeInteger(page.limit) &&
+            page.limit > 0 &&
+            page.limit <= 1001,
+          "invalid_limit",
+        );
+        const values: unknown[] = [scope, page.after ?? ""];
+        let filter = "";
+        if (page.state !== undefined) {
+          values.push(page.state);
+          filter = ` AND state=${placeholder(dialect, values.length)}`;
+        }
+        if (page.dueBefore !== undefined) {
+          assert(table === "work", "invalid_due_query");
+          values.push(page.dueBefore);
+          filter += ` AND due<=${placeholder(dialect, values.length)}`;
+        }
+        values.push(page.limit);
+        const rows = yield* query(
+          `SELECT id,state,data FROM ${name(table)} WHERE scope=${placeholder(dialect, 1)} AND id>${placeholder(dialect, 2)}${filter} ORDER BY id LIMIT ${placeholder(dialect, values.length)}`,
+          values,
+        );
+        return rows.map((row) => ({
+          id: row.id,
+          state: row.state,
+          data: JSON.parse(row.data) as T,
+        }));
+      });
     },
-    async put(table, row) {
-      const values: unknown[] = [
-        scope,
-        row.id,
-        row.state,
-        JSON.stringify(row.data),
-      ];
-      if (table === "work") values.push(dueAt(row));
-      const suffix =
-        dialect === "mysql"
-          ? `ON DUPLICATE KEY UPDATE state=VALUES(state),data=VALUES(data)${table === "work" ? ",due=VALUES(due)" : ""}`
-          : `ON CONFLICT(scope,id) DO UPDATE SET state=excluded.state,data=excluded.data${table === "work" ? ",due=excluded.due" : ""}`;
-      await query(
-        `INSERT INTO ${name(table)} (scope,id,state,data${table === "work" ? ",due" : ""}) VALUES (${values.map((_, i) => placeholder(dialect, i + 1)).join(",")}) ${suffix}`,
-        values,
-      );
+    put(table, row) {
+      return task(function* () {
+        const values: unknown[] = [
+          scope,
+          row.id,
+          row.state,
+          JSON.stringify(row.data),
+        ];
+        if (table === "work") values.push(dueAt(row));
+        const suffix =
+          dialect === "mysql"
+            ? `ON DUPLICATE KEY UPDATE state=VALUES(state),data=VALUES(data)${table === "work" ? ",due=VALUES(due)" : ""}`
+            : `ON CONFLICT(scope,id) DO UPDATE SET state=excluded.state,data=excluded.data${table === "work" ? ",due=excluded.due" : ""}`;
+        yield* query(
+          `INSERT INTO ${name(table)} (scope,id,state,data${table === "work" ? ",due" : ""}) VALUES (${values.map((_, i) => placeholder(dialect, i + 1)).join(",")}) ${suffix}`,
+          values,
+        );
+      });
     },
   };
 }
-const sqliteTails = new WeakMap<object, Promise<void>>();
-/** Uses only the documented Drizzle $client. Unsupported drivers fail explicitly. */
-export function drizzleAdapter(
-  db: { $client: any },
+const sqliteLocks = new WeakMap<object, Semaphore.Semaphore>();
+/** Native Effect adapter. Connection acquisition and release are scoped. */
+export function drizzleStorage(
+  db: {
+    $client: any;
+  },
   options: AdapterOptions,
 ): Storage {
   const client = db.$client;
@@ -133,9 +150,9 @@ export function drizzleAdapter(
     client && ["postgres", "mysql", "sqlite", "d1"].includes(options.dialect),
     "unsupported_driver",
   );
-  if (options.dialect === "d1") return d1Adapter(client, options.retries);
-  const dialect = options.dialect;
-  const sqlite = dialect === "sqlite";
+  if (options.dialect === "d1") return d1Storage(client, options.retries);
+  const dialect = options.dialect,
+    sqlite = dialect === "sqlite";
   if (sqlite) {
     assert(
       typeof client.exec === "function" &&
@@ -147,133 +164,150 @@ export function drizzleAdapter(
       `PRAGMA busy_timeout = ${Math.max(0, Math.floor(options.busyTimeout ?? 5000))}`,
     );
     client.exec("PRAGMA foreign_keys = ON");
-  }
-  async function connection() {
-    if (sqlite) return { conn: client, release: () => {} };
-    if (dialect === "postgres") {
-      assert(
-        typeof client.connect === "function",
-        "unsupported_driver",
-        "Use a pg-compatible Pool, including Neon's WebSocket Pool.",
-      );
-      const conn = await client.connect();
-      return { conn, release: () => conn.release() };
-    }
+  } else
     assert(
-      typeof client.getConnection === "function",
+      typeof client[dialect === "postgres" ? "connect" : "getConnection"] ===
+        "function",
       "unsupported_driver",
-      "Use a mysql2 promise Pool.",
     );
-    const conn = await client.getConnection();
-    return { conn, release: () => conn.release() };
-  }
-  function queryFor(conn: any): Query {
-    return async (sql, parameters = []) => {
-      if (sqlite) {
-        const stmt =
-          typeof conn.prepare === "function"
-            ? conn.prepare(sql)
-            : conn.query(sql);
-        if (/^\s*(SELECT|WITH|PRAGMA)/i.test(sql))
-          return stmt.all(...parameters);
-        stmt.run(...parameters);
-        return [];
-      }
-      if (dialect === "postgres")
-        return (await conn.query(sql, parameters)).rows;
-      const [rows] = await (/^(BEGIN|COMMIT|ROLLBACK)$/.test(sql)
-        ? conn.query(sql)
-        : conn.execute(sql, parameters));
-      return Array.isArray(rows) ? rows : [];
+  const gate = sqlite
+    ? (sqliteLocks.get(client) ?? Semaphore.makeUnsafe(1))
+    : undefined;
+  if (gate) sqliteLocks.set(client, gate);
+  const acquire = sqlite
+    ? Effect.succeed(client)
+    : database(() =>
+        dialect === "postgres" ? client.connect() : client.getConnection(),
+      );
+  const queryFor =
+    (conn: any): Query =>
+    (sql, parameters = []) => {
+      if (sqlite)
+        return storageSync(() => {
+          const statement =
+            typeof conn.prepare === "function"
+              ? conn.prepare(sql)
+              : conn.query(sql);
+          if (/^\s*(SELECT|WITH|PRAGMA)/i.test(sql))
+            return statement.all(...parameters);
+          statement.run(...parameters);
+          return [];
+        });
+      return database(async () => {
+        if (dialect === "postgres")
+          return (await conn.query(sql, parameters)).rows;
+        const [rows] = await (/^(BEGIN|COMMIT|ROLLBACK)$/.test(sql)
+          ? conn.query(sql)
+          : conn.execute(sql, parameters));
+        return Array.isArray(rows) ? rows : [];
+      });
     };
-  }
-  async function exclusive<T>(run: () => Promise<T>): Promise<T> {
-    if (!sqlite) return run();
-    const before = sqliteTails.get(client) ?? Promise.resolve();
-    let release!: () => void;
-    const tail = before.then(
-      () =>
-        new Promise<void>((resolve) => {
-          release = resolve;
-        }),
+  function connection<A>(
+    run: (query: Query, quarantine: () => void) => BillingEffect<A>,
+  ): BillingEffect<A> {
+    const operation = Effect.acquireUseRelease(
+      Effect.map(acquire, (conn) => ({ conn, tainted: false })),
+      (resource) =>
+        Effect.suspend(() =>
+          run(queryFor(resource.conn), () => {
+            resource.tainted = true;
+          }),
+        ),
+      (resource) =>
+        sqlite
+          ? Effect.void
+          : Effect.sync(() => {
+              if (!resource.tainted) resource.conn.release();
+              else if (dialect === "postgres") resource.conn.release(true);
+              else resource.conn.destroy();
+            }),
     );
-    sqliteTails.set(client, tail);
-    await before;
-    // Ensure the continuation constructing the gate has executed.
-    await Promise.resolve();
-    try {
-      return await run();
-    } finally {
-      release();
-      if (sqliteTails.get(client) === tail) sqliteTails.delete(client);
-    }
+    return gate ? gate.withPermits(1)(operation) : operation;
   }
   return {
-    async atomic(scope, run) {
-      assert(scope.length <= 191, "invalid_scope");
-      return exclusive(async () => {
-        const { conn, release } = await connection();
-        const query = queryFor(conn);
-        try {
-          await query(sqlite ? "BEGIN IMMEDIATE" : "BEGIN");
-          const p = placeholder(dialect, 1);
-          await query(
-            `INSERT INTO brokeboy_locks (scope,revision) VALUES (${p},0) ${dialect === "mysql" ? "ON DUPLICATE KEY UPDATE scope=VALUES(scope)" : "ON CONFLICT(scope) DO NOTHING"}`,
-            [scope],
+    atomic: (scope, run) =>
+      connection((query, quarantine) =>
+        task(function* () {
+          assert(scope.length <= 191, "invalid_scope");
+          // Driver promises are not abortable. Mask transaction commands and restore
+          // interruption only while executing the domain program, so rollback cannot
+          // race an in-flight query or release a connection still in use.
+          return yield* Effect.uninterruptibleMask((restore) =>
+            task(function* () {
+              yield* query(sqlite ? "BEGIN IMMEDIATE" : "BEGIN").pipe(
+                Effect.onExit((exit) =>
+                  Effect.sync(() => {
+                    if (Exit.isFailure(exit)) quarantine();
+                  }),
+                ),
+              );
+              let committed = false;
+              return yield* task(function* () {
+                const p = placeholder(dialect, 1);
+                yield* query(
+                  `INSERT INTO brokeboy_locks (scope,revision) VALUES (${p},0) ${dialect === "mysql" ? "ON DUPLICATE KEY UPDATE scope=VALUES(scope)" : "ON CONFLICT(scope) DO NOTHING"}`,
+                  [scope],
+                );
+                if (!sqlite)
+                  yield* query(
+                    `SELECT revision FROM brokeboy_locks WHERE scope=${p} FOR UPDATE`,
+                    [scope],
+                  );
+                const result = yield* restore(
+                  run(recordTransaction(scope, dialect, query)),
+                );
+                yield* query("COMMIT");
+                committed = true;
+                return result;
+              }).pipe(
+                Effect.ensuring(
+                  Effect.suspend(() =>
+                    committed
+                      ? Effect.void
+                      : query("ROLLBACK").pipe(
+                          Effect.onExit((exit) =>
+                            Effect.sync(() => {
+                              if (Exit.isFailure(exit)) quarantine();
+                            }),
+                          ),
+                          Effect.orDie,
+                          Effect.asVoid,
+                        ),
+                  ),
+                ),
+              );
+            }),
           );
-          if (!sqlite)
-            await query(
-              `SELECT revision FROM brokeboy_locks WHERE scope=${p} FOR UPDATE`,
-              [scope],
-            );
-          const result = await run(recordTransaction(scope, dialect, query));
-          await query("COMMIT");
-          return result;
-        } catch (error) {
-          try {
-            await query("ROLLBACK");
-          } catch {}
-          throw error;
-        } finally {
-          release();
-        }
-      });
-    },
-    async read(scope, run) {
-      return exclusive(async () => {
-        const { conn, release } = await connection();
-        try {
-          return await run(
-            readonly(recordTransaction(scope, dialect, queryFor(conn))),
-          );
-        } finally {
-          release();
-        }
-      });
-    },
-    async scopes(after = "", limit = 100, prefix = "") {
-      return exclusive(async () => {
-        const { conn, release } = await connection();
-        try {
-          return (
-            await queryFor(conn)(
-              `SELECT scope FROM brokeboy_locks WHERE scope>${placeholder(dialect, 1)} AND scope LIKE ${placeholder(dialect, 2)} ORDER BY scope LIMIT ${placeholder(dialect, 3)}`,
-              [after, `${prefix}%`, limit],
-            )
-          ).map((r) => r.scope);
-        } finally {
-          release();
-        }
-      });
-    },
+        }),
+      ),
+    read: (scope, run) =>
+      connection((query) =>
+        run(readonly(recordTransaction(scope, dialect, query))),
+      ),
+    scopes: (after = "", limit = 100, prefix = "") =>
+      connection((query) =>
+        Effect.map(
+          query(
+            `SELECT scope FROM brokeboy_locks WHERE scope>${placeholder(dialect, 1)} AND scope LIKE ${placeholder(dialect, 2)} ORDER BY scope LIMIT ${placeholder(dialect, 3)}`,
+            [after, `${prefix}%`, limit],
+          ),
+          (rows) => rows.map((row) => row.scope),
+        ),
+      ),
   };
 }
+export const drizzleAdapter = (
+  db: {
+    $client: any;
+  },
+  options: AdapterOptions,
+) => promiseStorage(drizzleStorage(db, options));
 export type D1Client = {
   prepare(sql: string): any;
   batch(statements: any[]): Promise<any[]>;
   withSession?(constraint: string): D1Client;
 };
-function d1Adapter(binding: D1Client, retries = 12): Storage {
+function d1Storage(binding: D1Client, retries = 12): Storage {
   assert(
     typeof binding.batch === "function" &&
       typeof binding.prepare === "function",
@@ -282,116 +316,145 @@ function d1Adapter(binding: D1Client, retries = 12): Storage {
   const primary = () => binding.withSession?.("first-primary") ?? binding;
   const queryFor =
     (db: D1Client): Query =>
-    async (sql, values = []) =>
-      (
-        await db
-          .prepare(sql)
-          .bind(...values)
-          .all()
-      ).results;
+    (sql, values = []) =>
+      database(
+        async () =>
+          (
+            await db
+              .prepare(sql)
+              .bind(...values)
+              .all()
+          ).results,
+      );
   return {
-    async atomic(scope, run) {
-      for (let attempt = 0; attempt < retries; attempt++) {
-        const db = primary();
-        await db
-          .prepare(
-            "INSERT INTO brokeboy_locks (scope,revision) VALUES (?,0) ON CONFLICT(scope) DO NOTHING",
-          )
-          .bind(scope)
-          .run();
-        const head = await db
-          .prepare("SELECT revision FROM brokeboy_locks WHERE scope=?")
-          .bind(scope)
-          .first();
-        const pending = new Map<string, { table: Table; row: Row }>();
-        const reader = recordTransaction(scope, "d1", queryFor(db));
-        const tx: Transaction = {
-          async get<T>(table: Table, id: string) {
-            const hit = pending.get(`${table}:${id}`);
-            return hit
-              ? (structuredClone(hit.row) as Row<T>)
-              : reader.get<T>(table, id);
-          },
-          async list<T>(table: Table, state?: string) {
-            const rows = new Map(
-              (await reader.list<T>(table)).map((row) => [row.id, row]),
-            );
-            for (const write of pending.values())
-              if (write.table === table)
-                rows.set(write.row.id, structuredClone(write.row) as Row<T>);
-            return [...rows.values()].filter(
-              (row) => state === undefined || row.state === state,
-            );
-          },
-          async page<T>(
-            table: Table,
-            page: import("./storage/contract.js").PageQuery,
-          ) {
-            if (pending.size === 0) return reader.page<T>(table, page);
-            return (await this.list<T>(table, page.state))
-              .filter(
-                (row) =>
-                  row.id > (page.after ?? "") &&
-                  (page.dueBefore === undefined ||
-                    dueAt(row) <= page.dueBefore),
-              )
-              .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-              .slice(0, page.limit);
-          },
-          async put(table, row) {
-            pending.set(`${table}:${row.id}`, {
-              table,
-              row: structuredClone(row),
-            });
-          },
-        };
-        const result = await run(tx);
-        const token = crypto.randomUUID();
-        const statements = [
-          db
-            .prepare(
-              "UPDATE brokeboy_locks SET revision=revision+1,token=? WHERE scope=? AND revision=?",
-            )
-            .bind(token, scope, head.revision),
-        ];
-        for (const { table, row } of pending.values()) {
-          statements.push(
+    atomic: (scope, run) =>
+      task(function* () {
+        for (let attempt = 0; attempt < retries; attempt++) {
+          const db = primary();
+          yield* database(() =>
             db
               .prepare(
-                `INSERT INTO ${name(table)} (scope,id,state,data${table === "work" ? ",due" : ""}) SELECT ?,?,?,?${table === "work" ? ",?" : ""} WHERE EXISTS (SELECT 1 FROM brokeboy_locks WHERE scope=? AND token=?) ON CONFLICT(scope,id) DO UPDATE SET state=excluded.state,data=excluded.data${table === "work" ? ",due=excluded.due" : ""}`,
+                "INSERT INTO brokeboy_locks (scope,revision) VALUES (?,0) ON CONFLICT(scope) DO NOTHING",
               )
-              .bind(
-                scope,
-                row.id,
-                row.state,
-                JSON.stringify(row.data),
-                ...(table === "work" ? [dueAt(row)] : []),
-                scope,
-                token,
-              ),
+              .bind(scope)
+              .run(),
           );
+          const head = yield* database<{
+            revision: number;
+          }>(() =>
+            db
+              .prepare("SELECT revision FROM brokeboy_locks WHERE scope=?")
+              .bind(scope)
+              .first(),
+          );
+          const pending = new Map<
+            string,
+            {
+              table: Table;
+              row: Row;
+            }
+          >();
+          const reader = recordTransaction(scope, "d1", queryFor(db));
+          const tx: Transaction = {
+            get: <T>(table: Table, id: string) =>
+              Effect.suspend(() => {
+                const hit = pending.get(`${table}:${id}`);
+                return hit
+                  ? storageSync(() => structuredClone(hit.row) as Row<T>)
+                  : reader.get<T>(table, id);
+              }),
+            list: <T>(table: Table, state?: string) =>
+              Effect.map(reader.list<T>(table), (items) => {
+                const rows = new Map(items.map((row) => [row.id, row]));
+                for (const write of pending.values())
+                  if (write.table === table)
+                    rows.set(
+                      write.row.id,
+                      structuredClone(write.row) as Row<T>,
+                    );
+                return [...rows.values()].filter(
+                  (row) => state === undefined || row.state === state,
+                );
+              }),
+            page: <T>(
+              table: Table,
+              page: import("./storage/contract.js").PageQuery,
+            ) =>
+              Effect.suspend(() =>
+                pending.size === 0
+                  ? reader.page<T>(table, page)
+                  : Effect.map(tx.list<T>(table, page.state), (rows) =>
+                      rows
+                        .filter(
+                          (row) =>
+                            row.id > (page.after ?? "") &&
+                            (page.dueBefore === undefined ||
+                              dueAt(row) <= page.dueBefore),
+                        )
+                        .sort((a, b) =>
+                          a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+                        )
+                        .slice(0, page.limit),
+                    ),
+              ),
+            put: (table, row) =>
+              storageSync(() => {
+                pending.set(`${table}:${row.id}`, {
+                  table,
+                  row: structuredClone(row),
+                });
+              }),
+          };
+          const result = yield* run(tx);
+          const token = crypto.randomUUID();
+          const statements = [
+            db
+              .prepare(
+                "UPDATE brokeboy_locks SET revision=revision+1,token=? WHERE scope=? AND revision=?",
+              )
+              .bind(token, scope, head.revision),
+          ];
+          for (const { table, row } of pending.values())
+            statements.push(
+              db
+                .prepare(
+                  `INSERT INTO ${name(table)} (scope,id,state,data${table === "work" ? ",due" : ""}) SELECT ?,?,?,?${table === "work" ? ",?" : ""} WHERE EXISTS (SELECT 1 FROM brokeboy_locks WHERE scope=? AND token=?) ON CONFLICT(scope,id) DO UPDATE SET state=excluded.state,data=excluded.data${table === "work" ? ",due=excluded.due" : ""}`,
+                )
+                .bind(
+                  scope,
+                  row.id,
+                  row.state,
+                  JSON.stringify(row.data),
+                  ...(table === "work" ? [dueAt(row)] : []),
+                  scope,
+                  token,
+                ),
+            );
+          // Atomic batches cannot be aborted after submission; observe the result.
+          const committed = yield* Effect.uninterruptible(
+            database(() => db.batch(statements)),
+          );
+          if (committed[0]?.meta?.changes === 1) return result;
+          yield* Effect.sleep(Math.min(2 ** attempt, 32));
         }
-        const committed = await db.batch(statements);
-        if (committed[0]?.meta?.changes === 1) return result;
-        await new Promise((resolve) =>
-          setTimeout(resolve, Math.min(2 ** attempt, 32)),
+        return yield* Effect.fail(
+          new BillingError(
+            "storage_contention",
+            "Concurrent mutations exceeded the retry budget. Retry with the same idempotency key.",
+          ),
         );
-      }
-      throw new BillingError(
-        "storage_contention",
-        "Concurrent mutations exceeded the retry budget. Retry with the same idempotency key.",
-      );
-    },
-    async read(scope, run) {
-      return run(readonly(recordTransaction(scope, "d1", queryFor(primary()))));
-    },
-    async scopes(after = "", limit = 100, prefix = "") {
-      return (
-        await queryFor(primary())(
+      }),
+    read: (scope, run) =>
+      Effect.suspend(() =>
+        run(readonly(recordTransaction(scope, "d1", queryFor(primary())))),
+      ),
+    scopes: (after = "", limit = 100, prefix = "") =>
+      Effect.map(
+        queryFor(primary())(
           "SELECT scope FROM brokeboy_locks WHERE scope>? AND scope LIKE ? ORDER BY scope LIMIT ?",
           [after, `${prefix}%`, limit],
-        )
-      ).map((row) => row.scope);
-    },
+        ),
+        (rows) => rows.map((row) => row.scope),
+      ),
   };
 }

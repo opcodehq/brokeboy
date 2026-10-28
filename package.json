@@ -1,6 +1,6 @@
 {
   "name": "brokeboy",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "description": "Billing, credits, and entitlements in your application and database.",
   "license": "MIT",
   "type": "module",
@@ -53,6 +53,10 @@
     "./schema/sqlite": {
       "types": "./dist/schemas/sqlite.d.ts",
       "import": "./dist/schemas/sqlite.js"
+    },
+    "./effect": {
+      "types": "./dist/effect.d.ts",
+      "import": "./dist/effect.js"
     }
   },
   "scripts": {
@@ -112,6 +116,7 @@
     "ws": "^8.22.0"
   },
   "dependencies": {
+    "effect": "4.0.7",
     "jiti": "^2.6.0"
   },
   "engines": {

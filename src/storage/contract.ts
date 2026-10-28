@@ -47,15 +47,13 @@ export function readonly(tx: Transaction): Transaction {
   };
 }
 
-export const put = <T>(
-  tx: Transaction,
-  table: Parameters<Transaction["put"]>[0],
+export function indexedRow<T>(
   id: string,
+  state: string,
   data: T,
-  state = "active",
-) => {
-  // Internal deadlines and meter exports must not sit behind external payment work.
-  const kind = (data as { kind?: string }).kind;
+  table: Table,
+): Row<T> {
+  const kind = (data as { kind?: string } | null | undefined)?.kind;
   const indexedState =
     table === "work" && (state === "pending" || state === "failed")
       ? kind === "meter"
@@ -64,8 +62,15 @@ export const put = <T>(
           ? `internal_${state}`
           : state
       : state;
-  return tx.put(table, { id, state: indexedState, data });
-};
+  return { id, state: indexedState, data };
+}
+export const put = <T>(
+  tx: Transaction,
+  table: Table,
+  id: string,
+  data: T,
+  state = "active",
+) => tx.put(table, indexedRow(id, state, data, table));
 
 export function dueAt(row: Row): number {
   const data = row.data as { availableAt?: number; leaseUntil?: number };

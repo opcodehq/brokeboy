@@ -184,3 +184,23 @@ test("workflow resolution requires administrator authorization and records the a
   );
   expect(await customer.text()).not.toContain(claim.step.lease!.token);
 });
+
+test("schema decoding rejects malformed JSON and array request bodies", async () => {
+  const { handler } = await setup();
+  for (const body of ["[]", "{broken"]) {
+    const result = await handler(
+      new Request("https://example.test/api/billing/controls", {
+        method: "POST",
+        headers: {
+          origin: "https://example.test",
+          "content-type": "application/json",
+        },
+        body,
+      }),
+    );
+    expect(result.status).toBe(400);
+    expect(await result.json()).toMatchObject({
+      error: { code: "invalid_json" },
+    });
+  }
+});

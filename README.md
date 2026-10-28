@@ -2,7 +2,7 @@
 
 **Billing, credits, and entitlements in your application and database.**
 
-Brokeboy is an MIT-licensed TypeScript library. It runs in your backend, stores billing data in your database, and uses your Stripe account for payments. There is no Brokeboy service, account, transaction fee, or required dashboard.
+Brokeboy is an MIT-licensed TypeScript library with an Effect backend. It runs in your backend, stores billing data in your database, and uses your Stripe account for payments. There is no Brokeboy service, account, transaction fee, or required dashboard.
 
 This repository is an **alpha**. The implementation includes the billing engine and integrations below; merchant-authorized Stripe sandbox and hosted-driver qualification are release gates, not claims made by the unit tests. See [verification](internal-docs/verification.md).
 
@@ -23,8 +23,10 @@ To install the locally built library into another application:
 ```sh
 npm pack
 # From your application:
-npm install /path/to/brokeboy/brokeboy-0.1.0-alpha.1.tgz
+npm install /path/to/brokeboy/brokeboy-0.1.0-alpha.2.tgz
 ```
+
+The default SDK returns promises. Effect applications can use the native services and layers in `brokeboy/effect`; see the [Effect integration guide](docs/effect.md). Effect 4.0.7 is installed as a runtime dependency.
 
 The package has separate entry points. React, Drizzle, and Stripe are optional peers; importing `brokeboy` does not import them. Payment processing and your infrastructure still have their own costs.
 

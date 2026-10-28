@@ -7,6 +7,7 @@ import {
   SCALE,
   units,
 } from "./decimal.js";
+import { type BillingEffect, integration, task } from "./effect.js";
 import { assert, identifier } from "./errors.js";
 import type { Catalog, Metadata, Rate } from "./types.js";
 export function canonical(value: unknown): string {
@@ -18,14 +19,18 @@ export function canonical(value: unknown): string {
     .map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`)
     .join(",")}}`;
 }
-export async function hash(value: unknown): Promise<string> {
-  const bytes = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(canonical(value)),
-  );
-  return Array.from(new Uint8Array(bytes), (n) =>
-    n.toString(16).padStart(2, "0"),
-  ).join("");
+export function hash(value: unknown): BillingEffect<string> {
+  return task(function* () {
+    const bytes = yield* integration(() =>
+      crypto.subtle.digest(
+        "SHA-256",
+        new TextEncoder().encode(canonical(value)),
+      ),
+    );
+    return Array.from(new Uint8Array(bytes), (n) =>
+      n.toString(16).padStart(2, "0"),
+    ).join("");
+  });
 }
 export function defineCatalog<const T extends Catalog>(catalog: T): T {
   validateCatalog(catalog);
@@ -199,7 +204,6 @@ export function addInterval(
   return date.getTime();
 }
 export const UNIT = decimal(SCALE);
-
 export function normalizePlan(
   plan: import("./types.js").Plan,
   features: Catalog["features"],
