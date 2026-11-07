@@ -6,7 +6,18 @@ const db = new Database(path);
 try {
   db.exec("BEGIN IMMEDIATE");
   console.log("locked");
-  await Bun.sleep(250);
+  await new Promise<void>((resolve) => {
+    const timeout = setTimeout(() => {
+      process.exitCode = 1;
+      resolve();
+    }, 10_000);
+    process.stdin.once("data", (data) => {
+      clearTimeout(timeout);
+      if (String(data).trim() !== "release") process.exitCode = 1;
+      resolve();
+    });
+  });
+  process.stdin.destroy();
   db.exec("ROLLBACK");
 } finally {
   db.close();

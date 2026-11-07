@@ -1,10 +1,16 @@
 name: Native artifact qualification
 on:
   workflow_dispatch:
+    inputs:
+      musl_only:
+        description: Run only the musl jobs
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
   platform:
+    if: ${{ !inputs.musl_only }}
     strategy:
       fail-fast: false
       matrix:
@@ -43,13 +49,19 @@ jobs:
           - os: ubuntu-24.04-arm
             platform: linux-arm64-musl
     runs-on: ${{ matrix.os }}
-    container: rust:1.94-alpine
     steps:
-      - run: apk add --no-cache nodejs npm build-base linux-headers git
       - uses: actions/checkout@v4
-      - run: cargo build --release --locked -p brokeboy-node -p brokeboy-cli
-      - run: node scripts/stage-native.mjs --platform ${{ matrix.platform }} --out target/npm/platform
-      - run: node test/native.install.cjs target/npm/platform
+      - name: Build and execute in a matching musl container
+        run: |
+          docker run --rm -v "$PWD:/work" -w /work \
+            -e BROKEBOY_NATIVE_PLATFORM=${{ matrix.platform }} \
+            -e RUSTFLAGS="-C target-feature=-crt-static" \
+            rust:1.94-alpine sh -ec '
+              apk add --no-cache nodejs npm build-base linux-headers cmake perl
+              cargo build --release --locked -p brokeboy-node -p brokeboy-cli
+              node scripts/stage-native.mjs --platform "$BROKEBOY_NATIVE_PLATFORM" --out target/npm/platform
+              node test/native.install.cjs target/npm/platform
+            '
       - uses: actions/upload-artifact@v4
         with:
           name: native-${{ matrix.platform }}

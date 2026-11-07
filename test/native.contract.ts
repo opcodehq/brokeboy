@@ -313,7 +313,6 @@ test("native SQLite reads existing rows asynchronously and shuts down", async ()
       );
       for (const row of rows)
         assert.equal(JSON.parse(row!).metadata.future, "preserved");
-      assert.ok(ticks > 0, "native I/O must allow JavaScript timers to run");
       probe.registerRequest("isolated");
       assert.equal(
         await probe.inspectCustomer("live:c:native", "native", "isolated"),
@@ -326,7 +325,7 @@ test("native SQLite reads existing rows asynchronously and shuts down", async ()
         /interrupted/,
       );
       const holder = spawn("bun", ["scripts/hold-native-lock.ts", path], {
-        stdio: ["ignore", "pipe", "pipe"],
+        stdio: ["pipe", "pipe", "pipe"],
       });
       const exited = once(holder, "exit");
       try {
@@ -345,9 +344,22 @@ test("native SQLite reads existing rows asynchronously and shuts down", async ()
           "native",
           "cancel-during-io",
         );
-        const rejected = assert.rejects(waiting, /interrupted/);
-        await new Promise((resolve) => setTimeout(resolve, 10));
+        let pending = true;
+        const rejected = assert.rejects(waiting, /interrupted/).finally(() => {
+          pending = false;
+        });
+        ticks = 0;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        assert.ok(
+          pending,
+          "the native query must still be waiting for the explicit lock release",
+        );
+        assert.ok(
+          ticks > 0,
+          "native I/O must allow JavaScript timers to run while blocked",
+        );
         assert.ok(probe.cancelRequest("cancel-during-io"));
+        holder.stdin.end("release\n");
         await rejected;
         const [code] = await exited;
         assert.equal(code, 0);

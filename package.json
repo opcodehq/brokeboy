@@ -84,14 +84,15 @@
     "schemas:generate": "bun scripts/generate-schema.ts",
     "schemas:check": "bun scripts/generate-schema.ts --check",
     "native:build": "bun scripts/build-native.ts",
-    "test:native:node": "node --experimental-strip-types --test test/native.contract.ts test/native.stripe.ts test/native.sdk.ts",
-    "test:native:bun": "bun test ./test/native.contract.ts ./test/native.stripe.ts ./test/native.sdk.ts",
+    "test:native:node": "node --test-timeout=60000 --experimental-strip-types --test test/native.contract.ts test/native.stripe.ts test/native.sdk.ts",
+    "test:native:bun": "bun test --timeout 30000 ./test/native.contract.ts ./test/native.stripe.ts ./test/native.sdk.ts ./test/native.parity.ts",
     "check:rust": "cargo fmt --all -- --check && cargo clippy --workspace --all-targets --all-features --locked -- -D warnings && cargo test --workspace --all-features --locked",
     "types:generate": "bun scripts/generate-types.ts",
     "types:check": "bun scripts/generate-types.ts --check",
     "native:stage": "node scripts/stage-native.mjs",
     "benchmark:native": "node scripts/benchmark-native.mjs",
-    "test:stripe-sandbox:native": "BROKEBOY_SANDBOX_ENGINE=rust bun scripts/stripe-sandbox.ts"
+    "test:stripe-sandbox:native": "BROKEBOY_SANDBOX_ENGINE=rust bun scripts/stripe-sandbox.ts",
+    "test:native:parity": "bun test --timeout 30000 ./test/native.parity.ts"
   },
   "peerDependencies": {
     "drizzle-orm": ">=0.44.0 <1.0.0",

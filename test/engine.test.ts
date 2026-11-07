@@ -7,6 +7,7 @@ import {
   rateUsage,
 } from "../src/index.js";
 import { memoryAdapter } from "../src/memory.js";
+import type { OpenBilling } from "./billing-harness.js";
 import { workflowContract } from "./workflows.contract.js";
 
 const catalog = defineCatalog({
@@ -45,13 +46,18 @@ const catalog = defineCatalog({
     },
   ],
 });
-export function engineContract(name: string, make: () => Promise<Storage>) {
-  workflowContract(name, make);
+export function engineContract(
+  name: string,
+  make: () => Promise<Storage>,
+  open: OpenBilling = brokeboy,
+  makeTarget: () => Promise<Storage> = async () => memoryAdapter(),
+) {
+  workflowContract(name, make, open);
   describe(name, () => {
     async function setup() {
       let now = Date.UTC(2026, 0, 31);
       const db = await make();
-      const billing = brokeboy({ database: db, now: () => now });
+      const billing = await open({ database: db, now: () => now });
       const current = await billing.catalog.export();
       await billing.catalog.publish({
         catalog,
@@ -287,8 +293,8 @@ export function engineContract(name: string, make: () => Promise<Storage>) {
         idempotencyKey: "use",
       });
       const snapshot = await billing.migration.export(id);
-      const other = brokeboy({
-        database: memoryAdapter(),
+      const other = await open({
+        database: await makeTarget(),
         now: () => Date.UTC(2026, 0, 31),
       });
       await other.migration.import({ snapshot, idempotencyKey: "import" });

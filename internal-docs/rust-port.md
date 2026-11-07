@@ -55,6 +55,7 @@ bun run test:d1
 bun run native:build
 bun run test:native:node
 bun run test:native:bun
+bun run test:native:parity
 ```
 
 PostgreSQL/MySQL contracts print a qualification notice and skip their work if their URL is missing. Supply both variables when recording a driver qualification. Mixed-process tests use Bun as the old-engine oracle; applications using the Rust library need no JavaScript runtime.
@@ -65,6 +66,7 @@ The merchant-authorized sandbox script accepts test-mode credentials only. It cr
 
 - Rust 1.94: formatting, strict Clippy, feature matrix, documentation compilation, domain compatibility, lifecycle and SQL contracts pass on local Linux x64 GNU.
 - PostgreSQL 15, MariaDB 10.5 and SQLite pass native execution/receipt/archive comparisons. SQL contracts pass concurrent writers, rollback, dropped-transaction quarantine, cancellation rollback, environment isolation, borrowed-pool ownership and legacy replay. MariaDB does not qualify MySQL 8.
+- The shared 0.1 engine and workflow contracts also execute against Rust: 32 native SQLite scenarios pass, including seats, capped rollover, grandfathered catalog versions, fractional usage aggregation, imported workflow history, revoked grant backing, graph admission, safe retry fencing, late-cost recovery and checkpoint rollback. The contract runs the same assertions through both implementations rather than copying expected results.
 - Node 22/24 and Bun 1.3.10 pass native bindings, event-loop responsiveness, blocked-I/O/early cancellation, reentrant callbacks, shutdown, mixed-engine financial spending, workflow recovery, public promise/Effect SDKs, HTTP authorization/redaction, snapshot restore and pure pricing/calendar fixtures.
 - The local Stripe HTTP fixture passes transient failures and retained external keys, paid-state verification, duplicate/reordered purchase confirmations, ownership/resource checks, refunds, compensating adjustments and reconciliation. Its callback reenters a one-connection SQLite engine, demonstrating that provider networking holds no transaction.
 - The real Stripe sandbox passes native checkout creation, actual initial payment, signed ingestion of retrieved authoritative state, allowance provisioning, consumption, test-clock paid renewal, renewed allowance and ledger reconciliation. Browser checkout and public webhook delivery remain untested.
@@ -96,9 +98,15 @@ The measured stripped thin-LTO addon was 16,173,240 bytes; the native CLI was 15
 ## Remaining release gates
 
 1. Extend executable native parity to every existing billing/payment scenario and all required fault cases; the thirteen frozen traces and targeted native scenarios are substantial coverage, not proof of the complete release matrix. In particular, qualify postpaid invoice finalization, top-up/renewal races, schedules/proration, partial refunds/disputes, provider-window ambiguity and process/connection loss across all databases.
-2. Qualify MySQL 8, every required native distribution target, and compiler-free installation under each supported Node/Bun runtime. The local VM qualifies Linux x64 GNU only. Hosted runner availability must be resolved before binaries can ship.
+2. Qualify every required native distribution target, and compiler-free installation under each supported Node/Bun runtime. The local VM qualifies Linux x64 GNU only. Hosted runner availability must be resolved before binaries can ship.
 3. Complete database statement tracing and publish comparable contention/initialization/bundle measurements for the actual distribution artifacts. Rehearse application-specific backup/restore and migration with external-state cutover.
 4. Exercise browser checkout, public Stripe webhook delivery, 3DS/delayed payment paths, tax/discounts and broader sandbox scenarios. Signing retrieved real provider state does not establish public delivery or every merchant flow.
 5. After these gates pass, switch the default 0.2 package exports, remove TypeScript production billing rules from that line, qualify installation of the exact release archives, and publish crates/packages/docs/examples together. Retain 0.1 maintenance for Workers/D1.
 
-Previous hosted runs failed to start because of GitHub account payment/spending restrictions. A passing local suite does not remove that restriction or establish a passing hosted run. Stable release also requires the broader merchant/recovery qualification in `verification.md`.
+## Hosted execution
+
+Runner availability was restored for this change. [Check run 42423440991](https://github.com/opcodehq/brokeboy/actions/runs/42423440991) passed on Node 22 and 24, including the PostgreSQL 16/MySQL 8 services, D1 and the existing package checks. The contracts job of [Rust run 42423441018](https://github.com/opcodehq/brokeboy/actions/runs/42423441018) also passed against those real database versions; runner-native Linux/macOS binding jobs passed. The Windows Node 22 job passed. Windows Node 24 reached the Bun suite and exposed the harness's five-second default timeout plus a timer-resolution assumption. The revised test uses an explicitly held lock to prove JavaScript responsiveness during pending native I/O and gives bounded cross-runtime tests 30 seconds. That fix and the newly shared domain/workflow contract require a passing rerun before claiming complete qualification.
+
+The initial [artifact run 42423448726](https://github.com/opcodehq/brokeboy/actions/runs/42423448726) passed Linux GNU x64/arm64, macOS arm64 and Windows x64 builds and execution. Its musl jobs exposed a default static-CRT setting that prevents cdylib output and GitHub's unsupported ARM Alpine JavaScript-action environment. The corrected workflow checks out on the host, builds/executes in a matching Docker container, and disables static CRT for the dynamic addon. `musl_only` permits a targeted rerun. This correction requires a passing rerun; configuration alone is not qualification.
+
+Earlier hosted runs were blocked by account payment/spending restrictions; they are not passing results. Stable release still requires the broader merchant/recovery qualification in `verification.md`.

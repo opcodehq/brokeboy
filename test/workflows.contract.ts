@@ -1,11 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import { brokeboy, type Storage } from "../src/index.js";
+import type { OpenBilling } from "./billing-harness.js";
 
-export function workflowContract(name: string, make: () => Promise<Storage>) {
+export function workflowContract(
+  name: string,
+  make: () => Promise<Storage>,
+  open: OpenBilling = brokeboy,
+) {
   describe(`${name} workflow contract`, () => {
     async function setup() {
       const database = await make();
-      const billing = brokeboy({ database });
+      const billing = await open({ database });
       const customerId = crypto.randomUUID();
       await billing.customers.create({
         id: customerId,
@@ -55,7 +60,7 @@ export function workflowContract(name: string, make: () => Promise<Storage>) {
         idempotencyKey: "complete",
       };
       const receipt = await billing.workflows.complete(complete);
-      const resumed = brokeboy({ database });
+      const resumed = await open({ database });
       expect(await resumed.workflows.complete(complete)).toEqual(receipt);
       const finish = await resumed.workflows.claim({
         ...scope,
