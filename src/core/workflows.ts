@@ -1,62 +1,23 @@
+import type {
+  JsonValue,
+  Workflow,
+  WorkflowStep,
+  WorkflowStepDefinition,
+} from "../generated/models.js";
 import { put, type Transaction } from "../storage/native.js";
 import { decimal, nonnegative, positive, units } from "./decimal.js";
 import { type BillingEffect, task } from "./effect.js";
 import { assert, identifier, timestamp } from "./errors.js";
 import type { Ledger } from "./ledger.js";
 import type { Reservation, ScopeInput, Usage, WriteInput } from "./types.js";
-export type JsonValue =
-  | null
-  | boolean
-  | number
-  | string
-  | JsonValue[]
-  | {
-      [key: string]: JsonValue;
-    };
-export type WorkflowStepDefinition = {
-  id: string;
-  dependsOn?: string[];
-  budgets: {
-    feature: string;
-    amount: string;
-    poolScope?: "customer" | "entity";
-  }[];
-  maxAttempts?: number;
-};
-export type WorkflowStep = WorkflowStepDefinition & {
-  status:
-    | "pending"
-    | "running"
-    | "succeeded"
-    | "failed"
-    | "cancelled"
-    | "reconciliation";
-  attempts: number;
-  availableAt: number;
-  reservations: {
-    feature: string;
-    reservationId: string;
-  }[];
-  lease?: {
-    token: string;
-    workerId: string;
-    until: number;
-  };
-  result?: JsonValue;
-  usageIds?: string[];
-  error?: string;
-  reportedActuals?: Record<string, string>;
-};
-export type Workflow = {
-  id: string;
-  entityId?: string;
-  status: "active" | "succeeded" | "failed" | "cancelled" | "reconciliation";
-  revision: number;
-  cancellationRequested?: boolean;
-  createdAt: number;
-  expiresAt: number;
-  steps: WorkflowStep[];
-};
+
+export type {
+  JsonValue,
+  Workflow,
+  WorkflowStep,
+  WorkflowStepDefinition,
+} from "../generated/models.js";
+
 type Write = <T>(
   input: WriteInput,
   method: string,

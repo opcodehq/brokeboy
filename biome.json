@@ -2,7 +2,14 @@
   "$schema": "https://biomejs.dev/schemas/2.6.3/schema.json",
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**", "!dist", "!node_modules", "!bun.lock", "!.repos"]
+    "includes": [
+      "**",
+      "!dist",
+      "!node_modules",
+      "!bun.lock",
+      "!.repos",
+      "!target"
+    ]
   },
   "formatter": {
     "indentStyle": "space",

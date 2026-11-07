@@ -2,11 +2,13 @@
 
 **Billing, credits, and entitlements in your application and database.**
 
-Brokeboy is an MIT-licensed TypeScript library with an Effect backend. It runs in your backend, stores billing data in your database, and uses your Stripe account for payments. There is no Brokeboy service, account, transaction fee, or required dashboard.
+Brokeboy has an MIT-licensed TypeScript 0.1 SDK and a shared Rust engine for the 0.2 native SDK preview. It runs in your backend, stores billing data in your database, and uses your Stripe account for payments. There is no Brokeboy service, account, transaction fee, or required dashboard.
 
 This repository is an **alpha**. The implementation includes the billing engine and integrations below; merchant-authorized Stripe sandbox and hosted-driver qualification are release gates, not claims made by the unit tests. See [verification](internal-docs/verification.md).
 
 Upgrading from alpha.0: generate and apply the additive workflows-table migration before using the new workflow, admin-inspection or snapshot-export APIs. See [the recovery guide](internal-docs/recovery.md#workflow-upgrade-and-recovery).
+
+The native preview includes Rust/SQLx billing, Stripe orchestration, async Node/Bun bindings, scoped Effect integration, and a native CLI. See [native setup](docs/native.md) and [qualification status](internal-docs/rust-port.md). The default entry point below stays on 0.1 until the 0.2 release gates pass.
 
 ## Try it
 
@@ -189,6 +191,8 @@ Use `addOn: true` for independent subscription add-ons. Base plans share the def
 See [complex workflows](docs/workflows.md), [API and policies](docs/api.md), [React toolkit](docs/react.md), [architecture](internal-docs/architecture.md), and [operations and recovery](internal-docs/recovery.md).
 
 ## Develop
+
+The shared Rust engine for 0.2 is being implemented in `crates/`. The current TypeScript SDK remains the active engine. See the [Rust port status and checks](internal-docs/rust-port.md) for implemented compatibility contracts and remaining release gates.
 
 ```sh
 bun run check

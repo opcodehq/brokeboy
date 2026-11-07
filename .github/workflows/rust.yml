@@ -1,0 +1,68 @@
+name: Rust port qualification
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: brokeboy_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: [5432:5432]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: test-only
+          MYSQL_DATABASE: brokeboy_test
+        ports: [3306:3306]
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -ptest-only" --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      TEST_POSTGRES_URL: postgresql://postgres@127.0.0.1:5432/brokeboy_test
+      TEST_MYSQL_URL: mysql://root:test-only@127.0.0.1:3306/brokeboy_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.94.0
+        with:
+          components: rustfmt, clippy
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.10
+      - run: bun install --frozen-lockfile
+      - run: bun run types:check
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+      - run: cargo test --workspace --all-features --locked
+      - run: cargo check -p brokeboy --no-default-features --locked
+      - run: cargo check -p brokeboy --no-default-features --features postgres --locked
+      - run: cargo check -p brokeboy --no-default-features --features mysql --locked
+      - run: cargo check -p brokeboy --no-default-features --features sqlite --locked
+      - run: cargo check -p brokeboy --no-default-features --features stripe,http --locked
+      - run: cargo doc --workspace --all-features --no-deps --locked
+  native-proof:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [22, 24]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.94.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.10
+      - run: bun install --frozen-lockfile
+      - run: bun run native:build
+      - run: bun run test:native:node
+      - run: bun run test:native:bun

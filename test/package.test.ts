@@ -44,3 +44,50 @@ test("the browser-targeted root bundle has executable exports without optional p
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("native SDK and server entry points do not load TypeScript financial rules", async () => {
+  const result = await Bun.build({
+    entrypoints: ["src/native.ts", "src/native-effect.ts", "src/server.ts"],
+    target: "node",
+    external: ["effect", "effect/*"],
+    metafile: true,
+  });
+  expect(result.success).toBe(true);
+  const metadata: unknown = result.metafile;
+  const inputs = Object.keys(
+    (typeof metadata === "string"
+      ? JSON.parse(metadata)
+      : (metadata as { inputs: Record<string, unknown> })
+    ).inputs,
+  );
+  for (const file of [
+    "core/engine.ts",
+    "core/ledger.ts",
+    "core/catalog.ts",
+    "core/workflows.ts",
+    "storage/sql.ts",
+  ])
+    expect(inputs.some((input) => input.endsWith(file))).toBe(false);
+});
+
+test("React browser entry remains independent of the native addon", async () => {
+  const result = await Bun.build({
+    entrypoints: ["src/react/index.tsx"],
+    target: "browser",
+    external: ["react", "react-dom"],
+    metafile: true,
+  });
+  expect(result.success).toBe(true);
+  const metadata: unknown = result.metafile;
+  const inputs = Object.keys(
+    (typeof metadata === "string"
+      ? JSON.parse(metadata)
+      : (metadata as { inputs: Record<string, unknown> })
+    ).inputs,
+  );
+  expect(
+    inputs.some((input) =>
+      /native-loader|native-effect|native\.ts/.test(input),
+    ),
+  ).toBe(false);
+});

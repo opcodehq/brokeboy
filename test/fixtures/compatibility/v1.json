@@ -1,0 +1,1442 @@
+{
+  "oracle": "26c5eb67e9e7eb7d017fd968556172877ab48296",
+  "hashes": [
+    {
+      "input": null,
+      "canonical": "null",
+      "hash": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+    },
+    {
+      "input": {
+        "z": 1,
+        "a": {
+          "b": 2,
+          "a": 1
+        },
+        "empty": {},
+        "array": [false, null, "a"]
+      },
+      "canonical": "{\"a\":{\"a\":1,\"b\":2},\"array\":[false,null,\"a\"],\"empty\":{},\"z\":1}",
+      "hash": "0f99454fd3686cfed3532764ce829f7224897139bae38c96b7adf894182dc600"
+    },
+    {
+      "input": {
+        "𐀀": "astral",
+        "": "bmp",
+        "😀": "emoji",
+        "a\n": "\u0000"
+      },
+      "canonical": "{\"a\\n\":\"\\u0000\",\"𐀀\":\"astral\",\"😀\":\"emoji\",\"\":\"bmp\"}",
+      "hash": "0682579cfe73e4e28761c709111756b297570df5fec5206baebd936a1d6005f9"
+    },
+    {
+      "input": {
+        "numbers": [
+          0, 0, 0.000001, 1e-7, 100000000000000000000, 1e21, 1.23456789012345,
+          9007199254740991
+        ]
+      },
+      "canonical": "{\"numbers\":[0,0,0.000001,1e-7,100000000000000000000,1e+21,1.23456789012345,9007199254740991]}",
+      "hash": "ae770c6490f1ee812b51b6ba641c99acf125b8546a7c0aa0cbe9e55d51842dcc"
+    },
+    {
+      "input": {
+        "method": "usage.consume",
+        "payload": {
+          "amount": "1.00",
+          "customerId": "c",
+          "idempotencyKey": "k"
+        }
+      },
+      "canonical": "{\"method\":\"usage.consume\",\"payload\":{\"amount\":\"1.00\",\"customerId\":\"c\",\"idempotencyKey\":\"k\"}}",
+      "hash": "03a68c7b90c02e5c72ac94db8091af73fd64abc4785b7912873ae0ec639a1375"
+    },
+    {
+      "input": {
+        "method": "usage.consume",
+        "payload": {
+          "amount": "1",
+          "customerId": "c",
+          "idempotencyKey": "k"
+        }
+      },
+      "canonical": "{\"method\":\"usage.consume\",\"payload\":{\"amount\":\"1\",\"customerId\":\"c\",\"idempotencyKey\":\"k\"}}",
+      "hash": "05e082114025efc660c9d5955a4c7427b8c4d654f1792f9f3ad80f92d5e0eecf"
+    },
+    {
+      "input": {
+        "method": "usage.consume",
+        "payload": {
+          "amount": "1",
+          "customerId": "c",
+          "idempotencyKey": "k",
+          "properties": {}
+        }
+      },
+      "canonical": "{\"method\":\"usage.consume\",\"payload\":{\"amount\":\"1\",\"customerId\":\"c\",\"idempotencyKey\":\"k\",\"properties\":{}}}",
+      "hash": "88ebf69c0d1aeefb116d2bc449f56d3367058d5c0e81bf7c786398ab1b8f6f34"
+    }
+  ],
+  "decimals": [
+    {
+      "input": "0",
+      "result": {
+        "scaled": "0",
+        "decimal": "0"
+      }
+    },
+    {
+      "input": "-0",
+      "result": {
+        "scaled": "0",
+        "decimal": "0"
+      }
+    },
+    {
+      "input": "1.000000",
+      "result": {
+        "scaled": "1000000",
+        "decimal": "1"
+      }
+    },
+    {
+      "input": "-0.000001",
+      "result": {
+        "scaled": "-1",
+        "decimal": "-0.000001"
+      }
+    },
+    {
+      "input": "9223372036854.775807",
+      "result": {
+        "scaled": "9223372036854775807",
+        "decimal": "9223372036854.775807"
+      }
+    },
+    {
+      "input": "-9223372036854.775807",
+      "result": {
+        "scaled": "-9223372036854775807",
+        "decimal": "-9223372036854.775807"
+      }
+    },
+    {
+      "input": "9223372036854.775808",
+      "error": "decimal_overflow"
+    },
+    {
+      "input": "-9223372036854.775808",
+      "error": "decimal_overflow"
+    },
+    {
+      "input": "01",
+      "error": "invalid_decimal"
+    },
+    {
+      "input": "+1",
+      "error": "invalid_decimal"
+    },
+    {
+      "input": ".5",
+      "error": "invalid_decimal"
+    },
+    {
+      "input": "1.",
+      "error": "invalid_decimal"
+    },
+    {
+      "input": "1e3",
+      "error": "invalid_decimal"
+    },
+    {
+      "input": "1.0000001",
+      "error": "invalid_decimal"
+    },
+    {
+      "input": "",
+      "error": "invalid_decimal"
+    },
+    {
+      "input": "--1",
+      "error": "invalid_decimal"
+    }
+  ],
+  "currencies": [
+    {
+      "currency": "usd",
+      "amount": "0",
+      "result": "0"
+    },
+    {
+      "currency": "usd",
+      "amount": "0.004999",
+      "result": "0"
+    },
+    {
+      "currency": "usd",
+      "amount": "0.005",
+      "result": "1"
+    },
+    {
+      "currency": "usd",
+      "amount": "1.2345",
+      "result": "123"
+    },
+    {
+      "currency": "usd",
+      "amount": "9223372036854.775807",
+      "result": "922337203685478"
+    },
+    {
+      "currency": "usd",
+      "amount": "-1",
+      "error": "invalid_amount"
+    },
+    {
+      "currency": "jpy",
+      "amount": "0",
+      "result": "0"
+    },
+    {
+      "currency": "jpy",
+      "amount": "0.004999",
+      "result": "0"
+    },
+    {
+      "currency": "jpy",
+      "amount": "0.005",
+      "result": "0"
+    },
+    {
+      "currency": "jpy",
+      "amount": "1.2345",
+      "result": "1"
+    },
+    {
+      "currency": "jpy",
+      "amount": "9223372036854.775807",
+      "result": "9223372036855"
+    },
+    {
+      "currency": "jpy",
+      "amount": "-1",
+      "error": "invalid_amount"
+    },
+    {
+      "currency": "kwd",
+      "amount": "0",
+      "result": "0"
+    },
+    {
+      "currency": "kwd",
+      "amount": "0.004999",
+      "result": "5"
+    },
+    {
+      "currency": "kwd",
+      "amount": "0.005",
+      "result": "5"
+    },
+    {
+      "currency": "kwd",
+      "amount": "1.2345",
+      "result": "1235"
+    },
+    {
+      "currency": "kwd",
+      "amount": "9223372036854.775807",
+      "result": "9223372036854776"
+    },
+    {
+      "currency": "kwd",
+      "amount": "-1",
+      "error": "invalid_amount"
+    },
+    {
+      "currency": "xof",
+      "amount": "0",
+      "result": "0"
+    },
+    {
+      "currency": "xof",
+      "amount": "0.004999",
+      "result": "0"
+    },
+    {
+      "currency": "xof",
+      "amount": "0.005",
+      "result": "0"
+    },
+    {
+      "currency": "xof",
+      "amount": "1.2345",
+      "result": "1"
+    },
+    {
+      "currency": "xof",
+      "amount": "9223372036854.775807",
+      "result": "9223372036855"
+    },
+    {
+      "currency": "xof",
+      "amount": "-1",
+      "error": "invalid_amount"
+    },
+    {
+      "currency": "USD",
+      "amount": "0",
+      "result": "0"
+    },
+    {
+      "currency": "USD",
+      "amount": "0.004999",
+      "result": "0"
+    },
+    {
+      "currency": "USD",
+      "amount": "0.005",
+      "result": "1"
+    },
+    {
+      "currency": "USD",
+      "amount": "1.2345",
+      "result": "123"
+    },
+    {
+      "currency": "USD",
+      "amount": "9223372036854.775807",
+      "result": "922337203685478"
+    },
+    {
+      "currency": "USD",
+      "amount": "-1",
+      "error": "invalid_amount"
+    }
+  ],
+  "multiplication": [
+    {
+      "a": "-0.000001",
+      "b": "0.5",
+      "result": "0"
+    },
+    {
+      "a": "1.234567",
+      "b": "2.765432",
+      "result": "3.414111"
+    },
+    {
+      "a": "9223372036854.775807",
+      "b": "1",
+      "result": "9223372036854.775807"
+    },
+    {
+      "a": "9223372036854.775807",
+      "b": "2",
+      "error": "decimal_overflow"
+    }
+  ],
+  "pricing": [
+    {
+      "rate": {},
+      "properties": {},
+      "quantity": "0",
+      "result": "0"
+    },
+    {
+      "rate": {},
+      "properties": {},
+      "quantity": "0.000001",
+      "result": "0.000001"
+    },
+    {
+      "rate": {},
+      "properties": {},
+      "quantity": "9.999999",
+      "result": "9.999999"
+    },
+    {
+      "rate": {},
+      "properties": {},
+      "quantity": "10",
+      "result": "10"
+    },
+    {
+      "rate": {},
+      "properties": {},
+      "quantity": "10.000001",
+      "result": "10.000001"
+    },
+    {
+      "rate": {},
+      "properties": {},
+      "quantity": "100",
+      "result": "100"
+    },
+    {
+      "rate": {
+        "amount": "0.123456"
+      },
+      "properties": {},
+      "quantity": "0",
+      "result": "0"
+    },
+    {
+      "rate": {
+        "amount": "0.123456"
+      },
+      "properties": {},
+      "quantity": "0.000001",
+      "result": "0"
+    },
+    {
+      "rate": {
+        "amount": "0.123456"
+      },
+      "properties": {},
+      "quantity": "9.999999",
+      "result": "1.234559"
+    },
+    {
+      "rate": {
+        "amount": "0.123456"
+      },
+      "properties": {},
+      "quantity": "10",
+      "result": "1.23456"
+    },
+    {
+      "rate": {
+        "amount": "0.123456"
+      },
+      "properties": {},
+      "quantity": "10.000001",
+      "result": "1.23456"
+    },
+    {
+      "rate": {
+        "amount": "0.123456"
+      },
+      "properties": {},
+      "quantity": "100",
+      "result": "12.3456"
+    },
+    {
+      "rate": {
+        "tiers": [
+          {
+            "upTo": "10",
+            "amount": "2",
+            "flat": "1"
+          },
+          {
+            "upTo": null,
+            "amount": "0.5",
+            "flat": "3"
+          }
+        ]
+      },
+      "properties": {},
+      "quantity": "0",
+      "result": "0"
+    },
+    {
+      "rate": {
+        "tiers": [
+          {
+            "upTo": "10",
+            "amount": "2",
+            "flat": "1"
+          },
+          {
+            "upTo": null,
+            "amount": "0.5",
+            "flat": "3"
+          }
+        ]
+      },
+      "properties": {},
+      "quantity": "0.000001",
+      "result": "1.000002"
+    },
+    {
+      "rate": {
+        "tiers": [
+          {
+            "upTo": "10",
+            "amount": "2",
+            "flat": "1"
+          },
+          {
+            "upTo": null,
+            "amount": "0.5",
+            "flat": "3"
+          }
+        ]
+      },
+      "properties": {},
+      "quantity": "9.999999",
+      "result": "20.999998"
+    },
+    {
+      "rate": {
+        "tiers": [
+          {
+            "upTo": "10",
+            "amount": "2",
+            "flat": "1"
+          },
+          {
+            "upTo": null,
+            "amount": "0.5",
+            "flat": "3"
+          }
+        ]
+      },
+      "properties": {},
+      "quantity": "10",
+      "result": "21"
+    },
+    {
+      "rate": {
+        "tiers": [
+          {
+            "upTo": "10",
+            "amount": "2",
+            "flat": "1"
+          },
+          {
+            "upTo": null,
+            "amount": "0.5",
+            "flat": "3"
+          }
+        ]
+      },
+      "properties": {},
+      "quantity": "10.000001",
+      "result": "24"
+    },
+    {
+      "rate": {
+        "tiers": [
+          {
+            "upTo": "10",
+            "amount": "2",
+            "flat": "1"
+          },
+          {
+            "upTo": null,
+            "amount": "0.5",
+            "flat": "3"
+          }
+        ]
+      },
+      "properties": {},
+      "quantity": "100",
+      "result": "69"
+    },
+    {
+      "rate": {
+        "mode": "volume",
+        "tiers": [
+          {
+            "upTo": "10",
+            "amount": "2",
+            "flat": "1"
+          },
+          {
+            "upTo": null,
+            "amount": "0.5",
+            "flat": "3"
+          }
+        ]
+      },
+      "properties": {},
+      "quantity": "0",
+      "result": "0"
+    },
+    {
+      "rate": {
+        "mode": "volume",
+        "tiers": [
+          {
+            "upTo": "10",
+            "amount": "2",
+            "flat": "1"
+          },
+          {
+            "upTo": null,
+            "amount": "0.5",
+            "flat": "3"
+          }
+        ]
+      },
+      "properties": {},
+      "quantity": "0.000001",
+      "result": "1.000002"
+    },
+    {
+      "rate": {
+        "mode": "volume",
+        "tiers": [
+          {
+            "upTo": "10",
+            "amount": "2",
+            "flat": "1"
+          },
+          {
+            "upTo": null,
+            "amount": "0.5",
+            "flat": "3"
+          }
+        ]
+      },
+      "properties": {},
+      "quantity": "9.999999",
+      "result": "20.999998"
+    },
+    {
+      "rate": {
+        "mode": "volume",
+        "tiers": [
+          {
+            "upTo": "10",
+            "amount": "2",
+            "flat": "1"
+          },
+          {
+            "upTo": null,
+            "amount": "0.5",
+            "flat": "3"
+          }
+        ]
+      },
+      "properties": {},
+      "quantity": "10",
+      "result": "21"
+    },
+    {
+      "rate": {
+        "mode": "volume",
+        "tiers": [
+          {
+            "upTo": "10",
+            "amount": "2",
+            "flat": "1"
+          },
+          {
+            "upTo": null,
+            "amount": "0.5",
+            "flat": "3"
+          }
+        ]
+      },
+      "properties": {},
+      "quantity": "10.000001",
+      "result": "8"
+    },
+    {
+      "rate": {
+        "mode": "volume",
+        "tiers": [
+          {
+            "upTo": "10",
+            "amount": "2",
+            "flat": "1"
+          },
+          {
+            "upTo": null,
+            "amount": "0.5",
+            "flat": "3"
+          }
+        ]
+      },
+      "properties": {},
+      "quantity": "100",
+      "result": "53"
+    },
+    {
+      "rate": {
+        "dimensions": [
+          {
+            "match": {
+              "model": "small"
+            },
+            "amount": "0.01"
+          },
+          {
+            "match": {
+              "model": "large"
+            },
+            "amount": "0.3"
+          }
+        ]
+      },
+      "properties": {
+        "model": "large"
+      },
+      "quantity": "0",
+      "result": "0"
+    },
+    {
+      "rate": {
+        "dimensions": [
+          {
+            "match": {
+              "model": "small"
+            },
+            "amount": "0.01"
+          },
+          {
+            "match": {
+              "model": "large"
+            },
+            "amount": "0.3"
+          }
+        ]
+      },
+      "properties": {
+        "model": "large"
+      },
+      "quantity": "0.000001",
+      "result": "0"
+    },
+    {
+      "rate": {
+        "dimensions": [
+          {
+            "match": {
+              "model": "small"
+            },
+            "amount": "0.01"
+          },
+          {
+            "match": {
+              "model": "large"
+            },
+            "amount": "0.3"
+          }
+        ]
+      },
+      "properties": {
+        "model": "large"
+      },
+      "quantity": "9.999999",
+      "result": "2.999999"
+    },
+    {
+      "rate": {
+        "dimensions": [
+          {
+            "match": {
+              "model": "small"
+            },
+            "amount": "0.01"
+          },
+          {
+            "match": {
+              "model": "large"
+            },
+            "amount": "0.3"
+          }
+        ]
+      },
+      "properties": {
+        "model": "large"
+      },
+      "quantity": "10",
+      "result": "3"
+    },
+    {
+      "rate": {
+        "dimensions": [
+          {
+            "match": {
+              "model": "small"
+            },
+            "amount": "0.01"
+          },
+          {
+            "match": {
+              "model": "large"
+            },
+            "amount": "0.3"
+          }
+        ]
+      },
+      "properties": {
+        "model": "large"
+      },
+      "quantity": "10.000001",
+      "result": "3"
+    },
+    {
+      "rate": {
+        "dimensions": [
+          {
+            "match": {
+              "model": "small"
+            },
+            "amount": "0.01"
+          },
+          {
+            "match": {
+              "model": "large"
+            },
+            "amount": "0.3"
+          }
+        ]
+      },
+      "properties": {
+        "model": "large"
+      },
+      "quantity": "100",
+      "result": "30"
+    },
+    {
+      "rate": {
+        "dimensions": [
+          {
+            "match": {
+              "model": "small"
+            },
+            "amount": "0.01"
+          }
+        ]
+      },
+      "properties": {},
+      "quantity": "0",
+      "result": "0"
+    },
+    {
+      "rate": {
+        "dimensions": [
+          {
+            "match": {
+              "model": "small"
+            },
+            "amount": "0.01"
+          }
+        ]
+      },
+      "properties": {},
+      "quantity": "0.000001",
+      "error": "missing_rate"
+    },
+    {
+      "rate": {
+        "dimensions": [
+          {
+            "match": {
+              "model": "small"
+            },
+            "amount": "0.01"
+          }
+        ]
+      },
+      "properties": {},
+      "quantity": "9.999999",
+      "error": "missing_rate"
+    },
+    {
+      "rate": {
+        "dimensions": [
+          {
+            "match": {
+              "model": "small"
+            },
+            "amount": "0.01"
+          }
+        ]
+      },
+      "properties": {},
+      "quantity": "10",
+      "error": "missing_rate"
+    },
+    {
+      "rate": {
+        "dimensions": [
+          {
+            "match": {
+              "model": "small"
+            },
+            "amount": "0.01"
+          }
+        ]
+      },
+      "properties": {},
+      "quantity": "10.000001",
+      "error": "missing_rate"
+    },
+    {
+      "rate": {
+        "dimensions": [
+          {
+            "match": {
+              "model": "small"
+            },
+            "amount": "0.01"
+          }
+        ]
+      },
+      "properties": {},
+      "quantity": "100",
+      "error": "missing_rate"
+    },
+    {
+      "rate": {
+        "dimensions": [
+          {
+            "match": {
+              "model": "small"
+            },
+            "amount": "0.01"
+          },
+          {
+            "match": {
+              "region": "us"
+            },
+            "amount": "1"
+          }
+        ]
+      },
+      "properties": {
+        "model": "small",
+        "region": "us"
+      },
+      "quantity": "0",
+      "result": "0"
+    },
+    {
+      "rate": {
+        "dimensions": [
+          {
+            "match": {
+              "model": "small"
+            },
+            "amount": "0.01"
+          },
+          {
+            "match": {
+              "region": "us"
+            },
+            "amount": "1"
+          }
+        ]
+      },
+      "properties": {
+        "model": "small",
+        "region": "us"
+      },
+      "quantity": "0.000001",
+      "error": "ambiguous_rate"
+    },
+    {
+      "rate": {
+        "dimensions": [
+          {
+            "match": {
+              "model": "small"
+            },
+            "amount": "0.01"
+          },
+          {
+            "match": {
+              "region": "us"
+            },
+            "amount": "1"
+          }
+        ]
+      },
+      "properties": {
+        "model": "small",
+        "region": "us"
+      },
+      "quantity": "9.999999",
+      "error": "ambiguous_rate"
+    },
+    {
+      "rate": {
+        "dimensions": [
+          {
+            "match": {
+              "model": "small"
+            },
+            "amount": "0.01"
+          },
+          {
+            "match": {
+              "region": "us"
+            },
+            "amount": "1"
+          }
+        ]
+      },
+      "properties": {
+        "model": "small",
+        "region": "us"
+      },
+      "quantity": "10",
+      "error": "ambiguous_rate"
+    },
+    {
+      "rate": {
+        "dimensions": [
+          {
+            "match": {
+              "model": "small"
+            },
+            "amount": "0.01"
+          },
+          {
+            "match": {
+              "region": "us"
+            },
+            "amount": "1"
+          }
+        ]
+      },
+      "properties": {
+        "model": "small",
+        "region": "us"
+      },
+      "quantity": "10.000001",
+      "error": "ambiguous_rate"
+    },
+    {
+      "rate": {
+        "dimensions": [
+          {
+            "match": {
+              "model": "small"
+            },
+            "amount": "0.01"
+          },
+          {
+            "match": {
+              "region": "us"
+            },
+            "amount": "1"
+          }
+        ]
+      },
+      "properties": {
+        "model": "small",
+        "region": "us"
+      },
+      "quantity": "100",
+      "error": "ambiguous_rate"
+    }
+  ],
+  "calendars": [
+    {
+      "start": 1706704496789,
+      "interval": "month",
+      "count": 0,
+      "result": 1706704496789
+    },
+    {
+      "start": 1706704496789,
+      "interval": "month",
+      "count": 1,
+      "result": 1709210096789
+    },
+    {
+      "start": 1706704496789,
+      "interval": "month",
+      "count": 2,
+      "result": 1711888496789
+    },
+    {
+      "start": 1706704496789,
+      "interval": "month",
+      "count": 12,
+      "result": 1738326896789
+    },
+    {
+      "start": 1706704496789,
+      "interval": "month",
+      "count": 25,
+      "result": 1772282096789
+    },
+    {
+      "start": 1706704496789,
+      "interval": "year",
+      "count": 0,
+      "result": 1706704496789
+    },
+    {
+      "start": 1706704496789,
+      "interval": "year",
+      "count": 1,
+      "result": 1738326896789
+    },
+    {
+      "start": 1706704496789,
+      "interval": "year",
+      "count": 2,
+      "result": 1769862896789
+    },
+    {
+      "start": 1706704496789,
+      "interval": "year",
+      "count": 12,
+      "result": 2085395696789
+    },
+    {
+      "start": 1706704496789,
+      "interval": "year",
+      "count": 25,
+      "result": 2495709296789
+    },
+    {
+      "start": 1709164800000,
+      "interval": "month",
+      "count": 0,
+      "result": 1709164800000
+    },
+    {
+      "start": 1709164800000,
+      "interval": "month",
+      "count": 1,
+      "result": 1711670400000
+    },
+    {
+      "start": 1709164800000,
+      "interval": "month",
+      "count": 2,
+      "result": 1714348800000
+    },
+    {
+      "start": 1709164800000,
+      "interval": "month",
+      "count": 12,
+      "result": 1740700800000
+    },
+    {
+      "start": 1709164800000,
+      "interval": "month",
+      "count": 25,
+      "result": 1774742400000
+    },
+    {
+      "start": 1709164800000,
+      "interval": "year",
+      "count": 0,
+      "result": 1709164800000
+    },
+    {
+      "start": 1709164800000,
+      "interval": "year",
+      "count": 1,
+      "result": 1740700800000
+    },
+    {
+      "start": 1709164800000,
+      "interval": "year",
+      "count": 2,
+      "result": 1772236800000
+    },
+    {
+      "start": 1709164800000,
+      "interval": "year",
+      "count": 12,
+      "result": 2087856000000
+    },
+    {
+      "start": 1709164800000,
+      "interval": "year",
+      "count": 25,
+      "result": 2498083200000
+    },
+    {
+      "start": 1738281600000,
+      "interval": "month",
+      "count": 0,
+      "result": 1738281600000
+    },
+    {
+      "start": 1738281600000,
+      "interval": "month",
+      "count": 1,
+      "result": 1740700800000
+    },
+    {
+      "start": 1738281600000,
+      "interval": "month",
+      "count": 2,
+      "result": 1743379200000
+    },
+    {
+      "start": 1738281600000,
+      "interval": "month",
+      "count": 12,
+      "result": 1769817600000
+    },
+    {
+      "start": 1738281600000,
+      "interval": "month",
+      "count": 25,
+      "result": 1803772800000
+    },
+    {
+      "start": 1738281600000,
+      "interval": "year",
+      "count": 0,
+      "result": 1738281600000
+    },
+    {
+      "start": 1738281600000,
+      "interval": "year",
+      "count": 1,
+      "result": 1769817600000
+    },
+    {
+      "start": 1738281600000,
+      "interval": "year",
+      "count": 2,
+      "result": 1801353600000
+    },
+    {
+      "start": 1738281600000,
+      "interval": "year",
+      "count": 12,
+      "result": 2116972800000
+    },
+    {
+      "start": 1738281600000,
+      "interval": "year",
+      "count": 25,
+      "result": 2527200000000
+    },
+    {
+      "start": 1767225599999,
+      "interval": "month",
+      "count": 0,
+      "result": 1767225599999
+    },
+    {
+      "start": 1767225599999,
+      "interval": "month",
+      "count": 1,
+      "result": 1769903999999
+    },
+    {
+      "start": 1767225599999,
+      "interval": "month",
+      "count": 2,
+      "result": 1772323199999
+    },
+    {
+      "start": 1767225599999,
+      "interval": "month",
+      "count": 12,
+      "result": 1798761599999
+    },
+    {
+      "start": 1767225599999,
+      "interval": "month",
+      "count": 25,
+      "result": 1832975999999
+    },
+    {
+      "start": 1767225599999,
+      "interval": "year",
+      "count": 0,
+      "result": 1767225599999
+    },
+    {
+      "start": 1767225599999,
+      "interval": "year",
+      "count": 1,
+      "result": 1798761599999
+    },
+    {
+      "start": 1767225599999,
+      "interval": "year",
+      "count": 2,
+      "result": 1830297599999
+    },
+    {
+      "start": 1767225599999,
+      "interval": "year",
+      "count": 12,
+      "result": 2145916799999
+    },
+    {
+      "start": 1767225599999,
+      "interval": "year",
+      "count": 25,
+      "result": 2556143999999
+    }
+  ],
+  "identifiers": [
+    {
+      "input": "c",
+      "result": "c"
+    },
+    {
+      "input": "org/team:test@1.0",
+      "result": "org/team:test@1.0"
+    },
+    {
+      "input": "constructor",
+      "error": "invalid_identifier"
+    },
+    {
+      "input": "__proto__",
+      "error": "invalid_identifier"
+    },
+    {
+      "input": "toString",
+      "error": "invalid_identifier"
+    },
+    {
+      "input": "toLocaleString",
+      "error": "invalid_identifier"
+    },
+    {
+      "input": "hello world",
+      "error": "invalid_identifier"
+    },
+    {
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "result": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "error": "invalid_identifier"
+    },
+    {
+      "input": "-a",
+      "error": "invalid_identifier"
+    },
+    {
+      "input": "é",
+      "error": "invalid_identifier"
+    }
+  ],
+  "timestamps": [
+    {
+      "input": -1,
+      "error": "invalid_timestamp"
+    },
+    {
+      "input": 0,
+      "result": 0
+    },
+    {
+      "input": 1,
+      "result": 1
+    },
+    {
+      "input": 1.1,
+      "error": "invalid_timestamp"
+    },
+    {
+      "input": 9007199254740991,
+      "result": 9007199254740991
+    },
+    {
+      "input": 9007199254740992,
+      "error": "invalid_timestamp"
+    }
+  ],
+  "schema": {
+    "sqlite": [
+      "CREATE TABLE IF NOT EXISTS brokeboy_locks (scope VARCHAR(191) PRIMARY KEY, revision INTEGER NOT NULL DEFAULT 0, token VARCHAR(64))",
+      "CREATE TABLE IF NOT EXISTS brokeboy_resources (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_resources_state ON brokeboy_resources (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_customers (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_customers_state ON brokeboy_customers (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_entities (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_entities_state ON brokeboy_entities (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_catalog (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_catalog_state ON brokeboy_catalog (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_subscriptions (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_subscriptions_state ON brokeboy_subscriptions (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_grants (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_grants_state ON brokeboy_grants (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_movements (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_movements_state ON brokeboy_movements (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_reservations (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_reservations_state ON brokeboy_reservations (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_usage (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_usage_state ON brokeboy_usage (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_operations (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_operations_state ON brokeboy_operations (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_inbox (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_inbox_state ON brokeboy_inbox (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_work (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, due BIGINT NOT NULL DEFAULT 0, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_work_state ON brokeboy_work (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_events (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_events_state ON brokeboy_events (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_audit (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_audit_state ON brokeboy_audit (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_counters (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_counters_state ON brokeboy_counters (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_licenses (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_licenses_state ON brokeboy_licenses (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_workflows (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_workflows_state ON brokeboy_workflows (scope,state)",
+      "CREATE INDEX IF NOT EXISTS brokeboy_work_due ON brokeboy_work (scope,state,due,id)"
+    ],
+    "postgres": [
+      "CREATE TABLE IF NOT EXISTS brokeboy_locks (scope VARCHAR(191) PRIMARY KEY, revision INTEGER NOT NULL DEFAULT 0, token VARCHAR(64))",
+      "CREATE TABLE IF NOT EXISTS brokeboy_resources (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_resources_state ON brokeboy_resources (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_customers (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_customers_state ON brokeboy_customers (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_entities (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_entities_state ON brokeboy_entities (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_catalog (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_catalog_state ON brokeboy_catalog (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_subscriptions (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_subscriptions_state ON brokeboy_subscriptions (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_grants (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_grants_state ON brokeboy_grants (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_movements (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_movements_state ON brokeboy_movements (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_reservations (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_reservations_state ON brokeboy_reservations (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_usage (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_usage_state ON brokeboy_usage (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_operations (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_operations_state ON brokeboy_operations (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_inbox (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_inbox_state ON brokeboy_inbox (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_work (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, due BIGINT NOT NULL DEFAULT 0, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_work_state ON brokeboy_work (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_events (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_events_state ON brokeboy_events (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_audit (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_audit_state ON brokeboy_audit (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_counters (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_counters_state ON brokeboy_counters (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_licenses (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_licenses_state ON brokeboy_licenses (scope,state)",
+      "CREATE TABLE IF NOT EXISTS brokeboy_workflows (scope VARCHAR(191) NOT NULL, id VARCHAR(191) NOT NULL, state VARCHAR(32) NOT NULL, data TEXT NOT NULL, PRIMARY KEY (scope,id))",
+      "CREATE INDEX IF NOT EXISTS brokeboy_workflows_state ON brokeboy_workflows (scope,state)",
+      "CREATE INDEX IF NOT EXISTS brokeboy_work_due ON brokeboy_work (scope,state,due,id)"
+    ],
+    "mysql": [
+      "CREATE TABLE IF NOT EXISTS brokeboy_locks (scope VARCHAR(191) COLLATE utf8mb4_bin PRIMARY KEY, revision INTEGER NOT NULL DEFAULT 0, token VARCHAR(64))",
+      "CREATE TABLE IF NOT EXISTS brokeboy_resources (scope VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, id VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, state VARCHAR(32) NOT NULL, data LONGTEXT NOT NULL, PRIMARY KEY (scope,id), INDEX state_idx (scope,state))",
+      "CREATE TABLE IF NOT EXISTS brokeboy_customers (scope VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, id VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, state VARCHAR(32) NOT NULL, data LONGTEXT NOT NULL, PRIMARY KEY (scope,id), INDEX state_idx (scope,state))",
+      "CREATE TABLE IF NOT EXISTS brokeboy_entities (scope VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, id VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, state VARCHAR(32) NOT NULL, data LONGTEXT NOT NULL, PRIMARY KEY (scope,id), INDEX state_idx (scope,state))",
+      "CREATE TABLE IF NOT EXISTS brokeboy_catalog (scope VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, id VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, state VARCHAR(32) NOT NULL, data LONGTEXT NOT NULL, PRIMARY KEY (scope,id), INDEX state_idx (scope,state))",
+      "CREATE TABLE IF NOT EXISTS brokeboy_subscriptions (scope VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, id VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, state VARCHAR(32) NOT NULL, data LONGTEXT NOT NULL, PRIMARY KEY (scope,id), INDEX state_idx (scope,state))",
+      "CREATE TABLE IF NOT EXISTS brokeboy_grants (scope VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, id VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, state VARCHAR(32) NOT NULL, data LONGTEXT NOT NULL, PRIMARY KEY (scope,id), INDEX state_idx (scope,state))",
+      "CREATE TABLE IF NOT EXISTS brokeboy_movements (scope VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, id VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, state VARCHAR(32) NOT NULL, data LONGTEXT NOT NULL, PRIMARY KEY (scope,id), INDEX state_idx (scope,state))",
+      "CREATE TABLE IF NOT EXISTS brokeboy_reservations (scope VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, id VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, state VARCHAR(32) NOT NULL, data LONGTEXT NOT NULL, PRIMARY KEY (scope,id), INDEX state_idx (scope,state))",
+      "CREATE TABLE IF NOT EXISTS brokeboy_usage (scope VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, id VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, state VARCHAR(32) NOT NULL, data LONGTEXT NOT NULL, PRIMARY KEY (scope,id), INDEX state_idx (scope,state))",
+      "CREATE TABLE IF NOT EXISTS brokeboy_operations (scope VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, id VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, state VARCHAR(32) NOT NULL, data LONGTEXT NOT NULL, PRIMARY KEY (scope,id), INDEX state_idx (scope,state))",
+      "CREATE TABLE IF NOT EXISTS brokeboy_inbox (scope VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, id VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, state VARCHAR(32) NOT NULL, data LONGTEXT NOT NULL, PRIMARY KEY (scope,id), INDEX state_idx (scope,state))",
+      "CREATE TABLE IF NOT EXISTS brokeboy_work (scope VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, id VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, state VARCHAR(32) NOT NULL, data LONGTEXT NOT NULL, due BIGINT NOT NULL DEFAULT 0, PRIMARY KEY (scope,id), INDEX state_idx (scope,state), INDEX due_idx (scope,state,due,id))",
+      "CREATE TABLE IF NOT EXISTS brokeboy_events (scope VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, id VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, state VARCHAR(32) NOT NULL, data LONGTEXT NOT NULL, PRIMARY KEY (scope,id), INDEX state_idx (scope,state))",
+      "CREATE TABLE IF NOT EXISTS brokeboy_audit (scope VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, id VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, state VARCHAR(32) NOT NULL, data LONGTEXT NOT NULL, PRIMARY KEY (scope,id), INDEX state_idx (scope,state))",
+      "CREATE TABLE IF NOT EXISTS brokeboy_counters (scope VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, id VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, state VARCHAR(32) NOT NULL, data LONGTEXT NOT NULL, PRIMARY KEY (scope,id), INDEX state_idx (scope,state))",
+      "CREATE TABLE IF NOT EXISTS brokeboy_licenses (scope VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, id VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, state VARCHAR(32) NOT NULL, data LONGTEXT NOT NULL, PRIMARY KEY (scope,id), INDEX state_idx (scope,state))",
+      "CREATE TABLE IF NOT EXISTS brokeboy_workflows (scope VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, id VARCHAR(191) COLLATE utf8mb4_bin NOT NULL, state VARCHAR(32) NOT NULL, data LONGTEXT NOT NULL, PRIMARY KEY (scope,id), INDEX state_idx (scope,state))"
+    ]
+  }
+}

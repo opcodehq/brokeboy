@@ -1,0 +1,56 @@
+name: Native artifact qualification
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  platform:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux-x64-gnu
+          - os: ubuntu-24.04-arm
+            platform: linux-arm64-gnu
+          - os: macos-15-intel
+            platform: darwin-x64
+          - os: macos-15
+            platform: darwin-arm64
+          - os: windows-latest
+            platform: win32-x64-msvc
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.94.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: cargo build --release --locked -p brokeboy-node -p brokeboy-cli
+      - run: node scripts/stage-native.mjs --platform ${{ matrix.platform }} --out target/npm/platform
+      - run: node test/native.install.cjs target/npm/platform
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.platform }}
+          path: target/npm/platform
+  musl:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux-x64-musl
+          - os: ubuntu-24.04-arm
+            platform: linux-arm64-musl
+    runs-on: ${{ matrix.os }}
+    container: rust:1.94-alpine
+    steps:
+      - run: apk add --no-cache nodejs npm build-base linux-headers git
+      - uses: actions/checkout@v4
+      - run: cargo build --release --locked -p brokeboy-node -p brokeboy-cli
+      - run: node scripts/stage-native.mjs --platform ${{ matrix.platform }} --out target/npm/platform
+      - run: node test/native.install.cjs target/npm/platform
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.platform }}
+          path: target/npm/platform

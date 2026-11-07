@@ -1,4 +1,5 @@
 import * as Effect from "effect/Effect";
+import { effectBackend } from "../billing-bridge.js";
 import {
   put,
   type Row,
@@ -68,6 +69,7 @@ export function makeEffectBilling(options: BillingOptions) {
   return new EffectBilling(options);
 }
 export class EffectBilling {
+  readonly [effectBackend] = this;
   private readonly store: Storage;
   private readonly now: () => number;
   private readonly ledger: Ledger;

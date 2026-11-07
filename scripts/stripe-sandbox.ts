@@ -1,7 +1,14 @@
+import { Database } from "bun:sqlite";
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import Stripe from "stripe";
+import { migrationSQL } from "../src/drizzle.js";
 import { brokeboy, defineCatalog } from "../src/index.js";
 import { memoryAdapter } from "../src/memory.js";
+import { Billing as NativeBilling } from "../src/native.js";
+import { loadNative } from "../src/native-loader.js";
 import { stripeProvider } from "../src/stripe.js";
 
 const key = process.env.STRIPE_SECRET_KEY;
@@ -16,26 +23,72 @@ const provider = stripeProvider({
   webhookSecret: secret,
   cryptoProvider: Stripe.createSubtleCryptoProvider(),
 });
-const billing = brokeboy({
-  now: () => now,
-  database: memoryAdapter(),
-  provider: {
-    ...provider,
-    execute: async (command) => {
-      try {
-        return await provider.execute(command);
-      } catch (error) {
-        console.error(
-          "Sandbox provider failure:",
-          error instanceof Error
-            ? error.message.replaceAll(key, "[REDACTED]")
-            : "unknown",
+const nativeContext =
+  process.env.BROKEBOY_SANDBOX_ENGINE === "rust"
+    ? await (async () => {
+        const directory = await mkdtemp(
+          join(tmpdir(), "brokeboy-stripe-native-"),
         );
-        throw error;
-      }
+        const path = join(directory, "billing.sqlite");
+        const db = new Database(path, { create: true });
+        try {
+          for (const sql of migrationSQL("sqlite")) db.exec(sql);
+        } finally {
+          db.close();
+        }
+        try {
+          const handle = await loadNative().NativeBilling.open(
+            JSON.stringify({
+              database: { driver: "sqlite", url: `sqlite://${path}` },
+              environment: "test",
+              testClockMs: now,
+              stripe: { secretKey: key, webhookSecret: secret },
+            }),
+          );
+          // Internal qualification hook: deterministic time is deliberately absent from the public SDK.
+          const billing = Reflect.construct(NativeBilling, [
+            handle,
+            "test",
+          ]) as NativeBilling;
+          return {
+            billing,
+            tick: (time: number) =>
+              (
+                handle as typeof handle & { setTestClock(time: number): void }
+              ).setTestClock(time),
+            close: async () => {
+              await billing.close();
+              await rm(directory, { recursive: true, force: true });
+            },
+          };
+        } catch (error) {
+          await rm(directory, { recursive: true, force: true });
+          throw error;
+        }
+      })()
+    : undefined;
+const billing =
+  nativeContext?.billing ??
+  brokeboy({
+    now: () => now,
+    database: memoryAdapter(),
+    provider: {
+      ...provider,
+      execute: async (command) => {
+        try {
+          return await provider.execute(command);
+        } catch (error) {
+          console.error(
+            "Sandbox provider failure:",
+            error instanceof Error
+              ? error.message.replaceAll(key, "[REDACTED]")
+              : "unknown",
+          );
+          throw error;
+        }
+      },
     },
-  },
-});
+  });
 const catalog = defineCatalog({
   features: [{ id: "credits", kind: "consumable" }],
   plans: [
@@ -118,6 +171,7 @@ try {
     const signature = await stripe.webhooks.generateTestHeaderStringAsync({
       payload,
       secret,
+      ...(nativeContext ? { timestamp: Math.floor(now / 1000) } : {}),
     });
     await billing.webhook(
       new Request("https://example.com/webhook", {
@@ -164,6 +218,7 @@ try {
       }
       assert(ready, "Stripe test clock did not finish advancing");
       now = target * 1000;
+      nativeContext?.tick(now);
     }
     await advanceClock(end + 60);
     // Renewal invoices have a draft interval before automatic collection.
@@ -184,6 +239,7 @@ try {
   console.log(
     JSON.stringify({
       passed: true,
+      engine: nativeContext ? "rust" : "typescript",
       checks: [
         "checkout creation",
         "test invoice paid",
@@ -210,4 +266,5 @@ try {
     await stripe.prices.update(priceId, { active: false }).catch(() => {});
   if (productId)
     await stripe.products.update(productId, { active: false }).catch(() => {});
+  await nativeContext?.close();
 }

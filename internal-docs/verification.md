@@ -51,3 +51,7 @@ The benchmark initially exposed an export-stripping issue with a package metadat
 ## Publication policy
 
 The current package is `0.1.0-alpha.2`. Prerelease source and package artifacts can be reviewed and tested independently. Do not label a release stable while external gates remain open. There is no hosted billing service or paid feature edition.
+
+## Rust native preview
+
+The 0.2 implementation, frozen interoperability fixtures, native SDK/Stripe results, artifact measurements, commands and remaining release gates are recorded in [Rust port qualification](rust-port.md). The repository default entry point stays on 0.1 until those gates pass. Native artifacts are staged locally and by a manual seven-target qualification workflow; nothing is published automatically.

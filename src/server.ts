@@ -1,7 +1,8 @@
 import * as Effect from "effect/Effect";
 import * as Exit from "effect/Exit";
 import * as Schema from "effect/Schema";
-import { type Billing, effectBilling } from "./billing.js";
+import type { Billing } from "./billing.js";
+import { effectBilling } from "./billing-bridge.js";
 import {
   type BillingEffect,
   fail,

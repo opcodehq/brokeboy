@@ -57,6 +57,14 @@
     "./effect": {
       "types": "./dist/effect.d.ts",
       "import": "./dist/effect.js"
+    },
+    "./native": {
+      "types": "./dist/native.d.ts",
+      "import": "./dist/native.js"
+    },
+    "./native/effect": {
+      "types": "./dist/native-effect.d.ts",
+      "import": "./dist/native-effect.js"
     }
   },
   "scripts": {
@@ -74,7 +82,16 @@
     "test:neon": "node --experimental-strip-types --test test/neon.node.ts",
     "demo": "bun examples/react-demo/index.ts",
     "schemas:generate": "bun scripts/generate-schema.ts",
-    "schemas:check": "bun scripts/generate-schema.ts --check"
+    "schemas:check": "bun scripts/generate-schema.ts --check",
+    "native:build": "bun scripts/build-native.ts",
+    "test:native:node": "node --experimental-strip-types --test test/native.contract.ts test/native.stripe.ts test/native.sdk.ts",
+    "test:native:bun": "bun test ./test/native.contract.ts ./test/native.stripe.ts ./test/native.sdk.ts",
+    "check:rust": "cargo fmt --all -- --check && cargo clippy --workspace --all-targets --all-features --locked -- -D warnings && cargo test --workspace --all-features --locked",
+    "types:generate": "bun scripts/generate-types.ts",
+    "types:check": "bun scripts/generate-types.ts --check",
+    "native:stage": "node scripts/stage-native.mjs",
+    "benchmark:native": "node scripts/benchmark-native.mjs",
+    "test:stripe-sandbox:native": "BROKEBOY_SANDBOX_ENGINE=rust bun scripts/stripe-sandbox.ts"
   },
   "peerDependencies": {
     "drizzle-orm": ">=0.44.0 <1.0.0",

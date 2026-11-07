@@ -1,8 +1,12 @@
 import * as Effect from "effect/Effect";
+import { effectBackend } from "./billing-bridge.js";
 import { runPromise } from "./core/effect.js";
 import { EffectBilling } from "./core/engine.js";
 import type { Environment, Hooks, PaymentProvider } from "./core/types.js";
 import { effectHooks, effectProvider } from "./integrations.js";
+
+export { effectBilling } from "./billing-bridge.js";
+
 import { effectStorage } from "./storage/bridge.js";
 import type { Storage } from "./storage/contract.js";
 export type BillingOptions = {
@@ -17,8 +21,6 @@ export type PromiseSurface<T> = T extends (...args: infer P) => infer R
   : T extends object
     ? { [K in keyof T]: PromiseSurface<T[K]> }
     : T;
-const nativeBilling = Symbol.for("@brokeboy/effect/backend");
-const engines = new WeakMap<Billing, EffectBilling>();
 function surface<T extends object>(target: T): PromiseSurface<T> {
   const cache = new Map<PropertyKey, unknown>();
   return new Proxy(target, {
@@ -68,8 +70,7 @@ export class Billing {
       provider: options.provider ? effectProvider(options.provider) : undefined,
       hooks: effectHooks(options.hooks),
     });
-    engines.set(this, native);
-    Object.defineProperty(this, nativeBilling, { value: native });
+    Object.defineProperty(this, effectBackend, { value: native });
     const api = surface(native);
     this.environment = native.environment;
     this.catalog = api.catalog;
@@ -93,13 +94,3 @@ export class Billing {
   }
 }
 export const brokeboy = (options: BillingOptions) => new Billing(options);
-export const effectBilling = (
-  billing: Billing | EffectBilling,
-): EffectBilling => {
-  if (billing instanceof EffectBilling) return billing;
-  const native =
-    engines.get(billing) ??
-    (Reflect.get(billing, nativeBilling) as EffectBilling | undefined);
-  if (!native) throw new TypeError("Expected a Brokeboy billing instance");
-  return native;
-};

@@ -1,0 +1,3016 @@
+{
+  "oracle": "26c5eb67e9e7eb7d017fd968556172877ab48296",
+  "now": 1769862896789,
+  "traces": [
+    {
+      "method": "customers.create",
+      "input": {
+        "id": "fixture",
+        "metadata": {
+          "account": "organization"
+        },
+        "idempotencyKey": "create"
+      },
+      "result": {
+        "id": "fixture",
+        "metadata": {
+          "account": "organization"
+        },
+        "controls": {}
+      }
+    },
+    {
+      "method": "entities.create",
+      "input": {
+        "customerId": "fixture",
+        "id": "project",
+        "metadata": {
+          "name": "Project"
+        },
+        "idempotencyKey": "entity"
+      },
+      "result": {
+        "id": "project",
+        "metadata": {
+          "name": "Project"
+        }
+      }
+    },
+    {
+      "method": "subscriptions.attach",
+      "input": {
+        "customerId": "fixture",
+        "planId": "free",
+        "idempotencyKey": "attach"
+      },
+      "result": {
+        "id": "a384ee0f125e7472582e4fd4580c2c3a0ddc59fc41fa4b3dd809d5c2f92ee5e2",
+        "plan": {
+          "id": "free",
+          "name": "Free",
+          "kind": "free",
+          "items": [
+            {
+              "feature": "credits",
+              "included": "20.00",
+              "reset": "month",
+              "kind": "consumable"
+            },
+            {
+              "feature": "tokens",
+              "pool": "credits",
+              "rate": {
+                "amount": "0.5"
+              },
+              "kind": "consumable"
+            }
+          ],
+          "version": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff",
+          "revision": 1
+        },
+        "status": "active",
+        "periodStart": 1769862896789,
+        "periodEnd": 1772282096789,
+        "paidThrough": 9007199254740991,
+        "quantity": "1"
+      }
+    },
+    {
+      "method": "credits.grant",
+      "input": {
+        "customerId": "fixture",
+        "feature": "budget",
+        "amount": "30.00",
+        "priority": -1,
+        "expiresAt": 1769949296789,
+        "idempotencyKey": "fund"
+      },
+      "result": {
+        "id": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+        "feature": "budget",
+        "amount": "30.00",
+        "expiresAt": 1769949296789,
+        "priority": -1,
+        "origin": "manual",
+        "sourceId": "fund",
+        "createdAt": 1769862896789
+      }
+    },
+    {
+      "method": "usage.consume",
+      "input": {
+        "customerId": "fixture",
+        "feature": "tokens",
+        "amount": "1.000001",
+        "properties": {
+          "region": "us"
+        },
+        "idempotencyKey": "consume"
+      },
+      "result": {
+        "id": "00000000-0000-4000-8000-000000000003",
+        "feature": "tokens",
+        "quantity": "1.000001",
+        "charged": "0.5",
+        "planVersion": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff",
+        "allocations": [
+          {
+            "grantId": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+            "amount": "0.5"
+          }
+        ],
+        "createdAt": 1769862896789,
+        "properties": {
+          "region": "us"
+        }
+      }
+    },
+    {
+      "method": "usage.correct",
+      "input": {
+        "customerId": "fixture",
+        "usageId": "00000000-0000-4000-8000-000000000003",
+        "reason": "fixture correction",
+        "idempotencyKey": "correct"
+      },
+      "result": {
+        "status": "corrected",
+        "usage": {
+          "id": "00000000-0000-4000-8000-000000000005",
+          "feature": "tokens",
+          "quantity": "-1.000001",
+          "charged": "-0.5",
+          "planVersion": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff",
+          "allocations": [
+            {
+              "grantId": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+              "amount": "-0.5"
+            }
+          ],
+          "createdAt": 1769862896789,
+          "properties": {
+            "region": "us"
+          },
+          "reverses": "00000000-0000-4000-8000-000000000003"
+        }
+      }
+    },
+    {
+      "method": "reservations.create",
+      "input": {
+        "customerId": "fixture",
+        "feature": "budget",
+        "amount": "7.50",
+        "idempotencyKey": "reserve"
+      },
+      "result": {
+        "feature": "budget",
+        "amount": "7.50",
+        "expiresAt": 1769863796789,
+        "id": "00000000-0000-4000-8000-000000000007",
+        "allocations": [
+          {
+            "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+            "amount": "7.5"
+          }
+        ],
+        "status": "held"
+      }
+    },
+    {
+      "method": "reservations.settle",
+      "input": {
+        "customerId": "fixture",
+        "reservationId": "00000000-0000-4000-8000-000000000007",
+        "amount": "5.25",
+        "idempotencyKey": "settle"
+      },
+      "result": {
+        "status": "settled",
+        "reservation": {
+          "feature": "budget",
+          "amount": "7.50",
+          "expiresAt": 1769863796789,
+          "id": "00000000-0000-4000-8000-000000000007",
+          "allocations": [
+            {
+              "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+              "amount": "7.5"
+            }
+          ],
+          "status": "settled"
+        },
+        "usage": {
+          "id": "00000000-0000-4000-8000-000000000009",
+          "feature": "budget",
+          "quantity": "5.25",
+          "charged": "5.25",
+          "allocations": [
+            {
+              "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+              "amount": "5.25"
+            }
+          ],
+          "createdAt": 1769862896789,
+          "properties": {
+            "reservationId": "00000000-0000-4000-8000-000000000007"
+          }
+        }
+      }
+    },
+    {
+      "method": "workflows.create",
+      "input": {
+        "customerId": "fixture",
+        "workflowId": "pipeline",
+        "idempotencyKey": "workflow",
+        "steps": [
+          {
+            "id": "prepare",
+            "budgets": [
+              {
+                "feature": "budget",
+                "amount": "3"
+              }
+            ]
+          },
+          {
+            "id": "finish",
+            "dependsOn": ["prepare"],
+            "budgets": [
+              {
+                "feature": "budget",
+                "amount": "4"
+              }
+            ]
+          }
+        ]
+      },
+      "result": {
+        "id": "pipeline",
+        "status": "active",
+        "revision": 1,
+        "createdAt": 1769862896789,
+        "expiresAt": 1769863796789,
+        "steps": [
+          {
+            "id": "prepare",
+            "budgets": [
+              {
+                "feature": "budget",
+                "amount": "3"
+              }
+            ],
+            "maxAttempts": 3,
+            "status": "pending",
+            "attempts": 0,
+            "availableAt": 1769862896789,
+            "reservations": [
+              {
+                "feature": "budget",
+                "reservationId": "00000000-0000-4000-8000-00000000000a"
+              }
+            ]
+          },
+          {
+            "id": "finish",
+            "dependsOn": ["prepare"],
+            "budgets": [
+              {
+                "feature": "budget",
+                "amount": "4"
+              }
+            ],
+            "maxAttempts": 3,
+            "status": "pending",
+            "attempts": 0,
+            "availableAt": 1769862896789,
+            "reservations": [
+              {
+                "feature": "budget",
+                "reservationId": "00000000-0000-4000-8000-00000000000b"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "method": "workflows.claim",
+      "input": {
+        "customerId": "fixture",
+        "workflowId": "pipeline",
+        "workerId": "worker",
+        "idempotencyKey": "claim-prepare"
+      },
+      "result": {
+        "claimed": true,
+        "workflowId": "pipeline",
+        "step": {
+          "id": "prepare",
+          "budgets": [
+            {
+              "feature": "budget",
+              "amount": "3"
+            }
+          ],
+          "maxAttempts": 3,
+          "status": "running",
+          "attempts": 1,
+          "availableAt": 1769862896789,
+          "reservations": [
+            {
+              "feature": "budget",
+              "reservationId": "00000000-0000-4000-8000-00000000000a"
+            }
+          ],
+          "lease": {
+            "token": "00000000-0000-4000-8000-00000000000e",
+            "workerId": "worker",
+            "until": 1769862956789
+          }
+        }
+      }
+    },
+    {
+      "method": "workflows.complete",
+      "input": {
+        "customerId": "fixture",
+        "workflowId": "pipeline",
+        "stepId": "prepare",
+        "token": "00000000-0000-4000-8000-00000000000e",
+        "actuals": {
+          "budget": "2"
+        },
+        "idempotencyKey": "complete-prepare"
+      },
+      "result": {
+        "id": "pipeline",
+        "status": "active",
+        "revision": 3,
+        "createdAt": 1769862896789,
+        "expiresAt": 1769863796789,
+        "steps": [
+          {
+            "id": "prepare",
+            "budgets": [
+              {
+                "feature": "budget",
+                "amount": "3"
+              }
+            ],
+            "maxAttempts": 3,
+            "status": "succeeded",
+            "attempts": 1,
+            "availableAt": 1769862896789,
+            "reservations": [
+              {
+                "feature": "budget",
+                "reservationId": "00000000-0000-4000-8000-00000000000a"
+              }
+            ],
+            "usageIds": ["00000000-0000-4000-8000-000000000012"]
+          },
+          {
+            "id": "finish",
+            "dependsOn": ["prepare"],
+            "budgets": [
+              {
+                "feature": "budget",
+                "amount": "4"
+              }
+            ],
+            "maxAttempts": 3,
+            "status": "pending",
+            "attempts": 0,
+            "availableAt": 1769862896789,
+            "reservations": [
+              {
+                "feature": "budget",
+                "reservationId": "00000000-0000-4000-8000-00000000000b"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "method": "workflows.claim",
+      "input": {
+        "customerId": "fixture",
+        "workflowId": "pipeline",
+        "workerId": "worker",
+        "idempotencyKey": "claim-finish"
+      },
+      "result": {
+        "claimed": true,
+        "workflowId": "pipeline",
+        "step": {
+          "id": "finish",
+          "dependsOn": ["prepare"],
+          "budgets": [
+            {
+              "feature": "budget",
+              "amount": "4"
+            }
+          ],
+          "maxAttempts": 3,
+          "status": "running",
+          "attempts": 1,
+          "availableAt": 1769862896789,
+          "reservations": [
+            {
+              "feature": "budget",
+              "reservationId": "00000000-0000-4000-8000-00000000000b"
+            }
+          ],
+          "lease": {
+            "token": "00000000-0000-4000-8000-000000000014",
+            "workerId": "worker",
+            "until": 1769862956789
+          }
+        }
+      }
+    },
+    {
+      "method": "workflows.complete",
+      "input": {
+        "customerId": "fixture",
+        "workflowId": "pipeline",
+        "stepId": "finish",
+        "token": "00000000-0000-4000-8000-000000000014",
+        "actuals": {
+          "budget": "3"
+        },
+        "idempotencyKey": "complete-finish"
+      },
+      "result": {
+        "id": "pipeline",
+        "status": "succeeded",
+        "revision": 5,
+        "createdAt": 1769862896789,
+        "expiresAt": 1769863796789,
+        "steps": [
+          {
+            "id": "prepare",
+            "budgets": [
+              {
+                "feature": "budget",
+                "amount": "3"
+              }
+            ],
+            "maxAttempts": 3,
+            "status": "succeeded",
+            "attempts": 1,
+            "availableAt": 1769862896789,
+            "reservations": [
+              {
+                "feature": "budget",
+                "reservationId": "00000000-0000-4000-8000-00000000000a"
+              }
+            ],
+            "usageIds": ["00000000-0000-4000-8000-000000000012"]
+          },
+          {
+            "id": "finish",
+            "dependsOn": ["prepare"],
+            "budgets": [
+              {
+                "feature": "budget",
+                "amount": "4"
+              }
+            ],
+            "maxAttempts": 3,
+            "status": "succeeded",
+            "attempts": 1,
+            "availableAt": 1769862896789,
+            "reservations": [
+              {
+                "feature": "budget",
+                "reservationId": "00000000-0000-4000-8000-00000000000b"
+              }
+            ],
+            "usageIds": ["00000000-0000-4000-8000-000000000018"]
+          }
+        ]
+      }
+    }
+  ],
+  "snapshot": {
+    "archive": {
+      "customers": [
+        {
+          "id": "fixture",
+          "state": "active",
+          "data": {
+            "id": "fixture",
+            "metadata": {
+              "account": "organization"
+            },
+            "controls": {}
+          }
+        }
+      ],
+      "entities": [
+        {
+          "id": "project",
+          "state": "active",
+          "data": {
+            "id": "project",
+            "metadata": {
+              "name": "Project"
+            }
+          }
+        }
+      ],
+      "subscriptions": [
+        {
+          "id": "a384ee0f125e7472582e4fd4580c2c3a0ddc59fc41fa4b3dd809d5c2f92ee5e2",
+          "state": "active",
+          "data": {
+            "id": "a384ee0f125e7472582e4fd4580c2c3a0ddc59fc41fa4b3dd809d5c2f92ee5e2",
+            "plan": {
+              "id": "free",
+              "name": "Free",
+              "kind": "free",
+              "items": [
+                {
+                  "feature": "credits",
+                  "included": "20.00",
+                  "reset": "month",
+                  "kind": "consumable"
+                },
+                {
+                  "feature": "tokens",
+                  "pool": "credits",
+                  "rate": {
+                    "amount": "0.5"
+                  },
+                  "kind": "consumable"
+                }
+              ],
+              "version": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff",
+              "revision": 1
+            },
+            "status": "active",
+            "periodStart": 1769862896789,
+            "periodEnd": 1772282096789,
+            "paidThrough": 9007199254740991,
+            "quantity": "1"
+          }
+        }
+      ],
+      "grants": [
+        {
+          "id": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+          "state": "active",
+          "data": {
+            "id": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+            "feature": "credits",
+            "amount": "20",
+            "expiresAt": 1772282096789,
+            "priority": 0,
+            "origin": "subscription",
+            "sourceId": "a384ee0f125e7472582e4fd4580c2c3a0ddc59fc41fa4b3dd809d5c2f92ee5e2",
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+          "state": "active",
+          "data": {
+            "id": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+            "feature": "budget",
+            "amount": "30.00",
+            "expiresAt": 1769949296789,
+            "priority": -1,
+            "origin": "manual",
+            "sourceId": "fund",
+            "createdAt": 1769862896789
+          }
+        }
+      ],
+      "movements": [
+        {
+          "id": "00000000-0000-4000-8000-000000000002",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "grantId": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+            "amount": "0.5",
+            "operationId": "consume",
+            "createdAt": 1769862896789,
+            "reason": "consume"
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000004",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000004",
+            "grantId": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+            "amount": "-0.5",
+            "operationId": "correct",
+            "createdAt": 1769862896789,
+            "reason": "fixture correction",
+            "reverses": "00000000-0000-4000-8000-000000000003"
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000008",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000008",
+            "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+            "amount": "5.25",
+            "operationId": "settle",
+            "createdAt": 1769862896789,
+            "reason": "settle"
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000011",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000011",
+            "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+            "amount": "2",
+            "operationId": "complete-prepare",
+            "createdAt": 1769862896789,
+            "reason": "settle"
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000017",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000017",
+            "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+            "amount": "3",
+            "operationId": "complete-finish",
+            "createdAt": 1769862896789,
+            "reason": "settle"
+          }
+        }
+      ],
+      "reservations": [
+        {
+          "id": "00000000-0000-4000-8000-000000000007",
+          "state": "settled",
+          "data": {
+            "feature": "budget",
+            "amount": "7.50",
+            "expiresAt": 1769863796789,
+            "id": "00000000-0000-4000-8000-000000000007",
+            "allocations": [
+              {
+                "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+                "amount": "7.5"
+              }
+            ],
+            "status": "settled"
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-00000000000a",
+          "state": "settled",
+          "data": {
+            "feature": "budget",
+            "amount": "3",
+            "expiresAt": 1769863796789,
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "allocations": [
+              {
+                "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+                "amount": "3"
+              }
+            ],
+            "status": "settled"
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-00000000000b",
+          "state": "settled",
+          "data": {
+            "feature": "budget",
+            "amount": "4",
+            "expiresAt": 1769863796789,
+            "id": "00000000-0000-4000-8000-00000000000b",
+            "allocations": [
+              {
+                "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+                "amount": "4"
+              }
+            ],
+            "status": "settled"
+          }
+        }
+      ],
+      "usage": [
+        {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "state": "reversed",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "feature": "tokens",
+            "quantity": "1.000001",
+            "charged": "0.5",
+            "planVersion": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff",
+            "allocations": [
+              {
+                "grantId": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+                "amount": "0.5"
+              }
+            ],
+            "createdAt": 1769862896789,
+            "properties": {
+              "region": "us"
+            }
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000005",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000005",
+            "feature": "tokens",
+            "quantity": "-1.000001",
+            "charged": "-0.5",
+            "planVersion": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff",
+            "allocations": [
+              {
+                "grantId": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+                "amount": "-0.5"
+              }
+            ],
+            "createdAt": 1769862896789,
+            "properties": {
+              "region": "us"
+            },
+            "reverses": "00000000-0000-4000-8000-000000000003"
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000009",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000009",
+            "feature": "budget",
+            "quantity": "5.25",
+            "charged": "5.25",
+            "allocations": [
+              {
+                "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+                "amount": "5.25"
+              }
+            ],
+            "createdAt": 1769862896789,
+            "properties": {
+              "reservationId": "00000000-0000-4000-8000-000000000007"
+            }
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000012",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000012",
+            "feature": "budget",
+            "quantity": "2",
+            "charged": "2",
+            "allocations": [
+              {
+                "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+                "amount": "2"
+              }
+            ],
+            "createdAt": 1769862896789,
+            "properties": {
+              "workflowId": "pipeline",
+              "stepId": "prepare",
+              "reservationId": "00000000-0000-4000-8000-00000000000a"
+            }
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000018",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000018",
+            "feature": "budget",
+            "quantity": "3",
+            "charged": "3",
+            "allocations": [
+              {
+                "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+                "amount": "3"
+              }
+            ],
+            "createdAt": 1769862896789,
+            "properties": {
+              "workflowId": "pipeline",
+              "stepId": "finish",
+              "reservationId": "00000000-0000-4000-8000-00000000000b"
+            }
+          }
+        }
+      ],
+      "operations": [
+        {
+          "id": "create",
+          "state": "active",
+          "data": {
+            "hash": "c451dcea466ecbcabd4835487215feed58bfa5fe857edd65386aaa5e313e1176",
+            "result": {
+              "id": "fixture",
+              "metadata": {
+                "account": "organization"
+              },
+              "controls": {}
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "entity",
+          "state": "active",
+          "data": {
+            "hash": "b7c98907ba386a76a31317880827f69cf206d6b415aaea979311384467b64e14",
+            "result": {
+              "id": "project",
+              "metadata": {
+                "name": "Project"
+              }
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "attach",
+          "state": "active",
+          "data": {
+            "hash": "ee7dd77bc464d9d962806786bb9984021032d3d94aaee615f6024e765d9ce7ee",
+            "result": {
+              "id": "a384ee0f125e7472582e4fd4580c2c3a0ddc59fc41fa4b3dd809d5c2f92ee5e2",
+              "plan": {
+                "id": "free",
+                "name": "Free",
+                "kind": "free",
+                "items": [
+                  {
+                    "feature": "credits",
+                    "included": "20.00",
+                    "reset": "month",
+                    "kind": "consumable"
+                  },
+                  {
+                    "feature": "tokens",
+                    "pool": "credits",
+                    "rate": {
+                      "amount": "0.5"
+                    },
+                    "kind": "consumable"
+                  }
+                ],
+                "version": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff",
+                "revision": 1
+              },
+              "status": "active",
+              "periodStart": 1769862896789,
+              "periodEnd": 1772282096789,
+              "paidThrough": 9007199254740991,
+              "quantity": "1"
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "fund",
+          "state": "active",
+          "data": {
+            "hash": "b768b297ed86a2ec89b334a39281cb5eb49637bb90258d16034dbe03a7dcdd02",
+            "result": {
+              "id": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+              "feature": "budget",
+              "amount": "30.00",
+              "expiresAt": 1769949296789,
+              "priority": -1,
+              "origin": "manual",
+              "sourceId": "fund",
+              "createdAt": 1769862896789
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "consume",
+          "state": "active",
+          "data": {
+            "hash": "46d0983ce74368ca9452d0bc220dcf56ca9a2e3265f2d1f662544a56cb8421a7",
+            "result": {
+              "id": "00000000-0000-4000-8000-000000000003",
+              "feature": "tokens",
+              "quantity": "1.000001",
+              "charged": "0.5",
+              "planVersion": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff",
+              "allocations": [
+                {
+                  "grantId": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+                  "amount": "0.5"
+                }
+              ],
+              "createdAt": 1769862896789,
+              "properties": {
+                "region": "us"
+              }
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "correct",
+          "state": "active",
+          "data": {
+            "hash": "b875288433ec3cdc317f3b2cf1ef3bec94bd6869fdaf75cd3c3d5a4d675be98c",
+            "result": {
+              "status": "corrected",
+              "usage": {
+                "id": "00000000-0000-4000-8000-000000000005",
+                "feature": "tokens",
+                "quantity": "-1.000001",
+                "charged": "-0.5",
+                "planVersion": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff",
+                "allocations": [
+                  {
+                    "grantId": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+                    "amount": "-0.5"
+                  }
+                ],
+                "createdAt": 1769862896789,
+                "properties": {
+                  "region": "us"
+                },
+                "reverses": "00000000-0000-4000-8000-000000000003"
+              }
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "reserve",
+          "state": "active",
+          "data": {
+            "hash": "2bbc79a74f1f34c519eead26c334c8fee57cee010d10e1a99acf894d57e5d936",
+            "result": {
+              "feature": "budget",
+              "amount": "7.50",
+              "expiresAt": 1769863796789,
+              "id": "00000000-0000-4000-8000-000000000007",
+              "allocations": [
+                {
+                  "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+                  "amount": "7.5"
+                }
+              ],
+              "status": "held"
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "settle",
+          "state": "active",
+          "data": {
+            "hash": "87cdfdded73e7214c59f0208604e2c116619a539f213b4772a88eb75f7e90221",
+            "result": {
+              "status": "settled",
+              "reservation": {
+                "feature": "budget",
+                "amount": "7.50",
+                "expiresAt": 1769863796789,
+                "id": "00000000-0000-4000-8000-000000000007",
+                "allocations": [
+                  {
+                    "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+                    "amount": "7.5"
+                  }
+                ],
+                "status": "settled"
+              },
+              "usage": {
+                "id": "00000000-0000-4000-8000-000000000009",
+                "feature": "budget",
+                "quantity": "5.25",
+                "charged": "5.25",
+                "allocations": [
+                  {
+                    "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+                    "amount": "5.25"
+                  }
+                ],
+                "createdAt": 1769862896789,
+                "properties": {
+                  "reservationId": "00000000-0000-4000-8000-000000000007"
+                }
+              }
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "workflow",
+          "state": "active",
+          "data": {
+            "hash": "92619bfa1b63f194b6be7bfbe5110b8dfc0bdf51d6f6ca19d3ae1ac3a14b04e5",
+            "result": {
+              "id": "pipeline",
+              "status": "active",
+              "revision": 1,
+              "createdAt": 1769862896789,
+              "expiresAt": 1769863796789,
+              "steps": [
+                {
+                  "id": "prepare",
+                  "budgets": [
+                    {
+                      "feature": "budget",
+                      "amount": "3"
+                    }
+                  ],
+                  "maxAttempts": 3,
+                  "status": "pending",
+                  "attempts": 0,
+                  "availableAt": 1769862896789,
+                  "reservations": [
+                    {
+                      "feature": "budget",
+                      "reservationId": "00000000-0000-4000-8000-00000000000a"
+                    }
+                  ]
+                },
+                {
+                  "id": "finish",
+                  "dependsOn": ["prepare"],
+                  "budgets": [
+                    {
+                      "feature": "budget",
+                      "amount": "4"
+                    }
+                  ],
+                  "maxAttempts": 3,
+                  "status": "pending",
+                  "attempts": 0,
+                  "availableAt": 1769862896789,
+                  "reservations": [
+                    {
+                      "feature": "budget",
+                      "reservationId": "00000000-0000-4000-8000-00000000000b"
+                    }
+                  ]
+                }
+              ]
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "claim-prepare",
+          "state": "active",
+          "data": {
+            "hash": "7e7597c593dfac92a266fbaf91a957d07db4e452f915121dbafa2ce4361bc334",
+            "result": {
+              "claimed": true,
+              "workflowId": "pipeline",
+              "step": {
+                "id": "prepare",
+                "budgets": [
+                  {
+                    "feature": "budget",
+                    "amount": "3"
+                  }
+                ],
+                "maxAttempts": 3,
+                "status": "running",
+                "attempts": 1,
+                "availableAt": 1769862896789,
+                "reservations": [
+                  {
+                    "feature": "budget",
+                    "reservationId": "00000000-0000-4000-8000-00000000000a"
+                  }
+                ],
+                "lease": {
+                  "token": "00000000-0000-4000-8000-00000000000e",
+                  "workerId": "worker",
+                  "until": 1769862956789
+                }
+              }
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "complete-prepare",
+          "state": "active",
+          "data": {
+            "hash": "b7dbb42ea0da7ebf440823fe0be648e410d713e619c08e59e50fc0f867f7fde6",
+            "result": {
+              "id": "pipeline",
+              "status": "active",
+              "revision": 3,
+              "createdAt": 1769862896789,
+              "expiresAt": 1769863796789,
+              "steps": [
+                {
+                  "id": "prepare",
+                  "budgets": [
+                    {
+                      "feature": "budget",
+                      "amount": "3"
+                    }
+                  ],
+                  "maxAttempts": 3,
+                  "status": "succeeded",
+                  "attempts": 1,
+                  "availableAt": 1769862896789,
+                  "reservations": [
+                    {
+                      "feature": "budget",
+                      "reservationId": "00000000-0000-4000-8000-00000000000a"
+                    }
+                  ],
+                  "usageIds": ["00000000-0000-4000-8000-000000000012"]
+                },
+                {
+                  "id": "finish",
+                  "dependsOn": ["prepare"],
+                  "budgets": [
+                    {
+                      "feature": "budget",
+                      "amount": "4"
+                    }
+                  ],
+                  "maxAttempts": 3,
+                  "status": "pending",
+                  "attempts": 0,
+                  "availableAt": 1769862896789,
+                  "reservations": [
+                    {
+                      "feature": "budget",
+                      "reservationId": "00000000-0000-4000-8000-00000000000b"
+                    }
+                  ]
+                }
+              ]
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "claim-finish",
+          "state": "active",
+          "data": {
+            "hash": "0d90aac3bfcd7a19d03472243c6d9a985d4488c14e28a9fd5de6d764f1b3f0d9",
+            "result": {
+              "claimed": true,
+              "workflowId": "pipeline",
+              "step": {
+                "id": "finish",
+                "dependsOn": ["prepare"],
+                "budgets": [
+                  {
+                    "feature": "budget",
+                    "amount": "4"
+                  }
+                ],
+                "maxAttempts": 3,
+                "status": "running",
+                "attempts": 1,
+                "availableAt": 1769862896789,
+                "reservations": [
+                  {
+                    "feature": "budget",
+                    "reservationId": "00000000-0000-4000-8000-00000000000b"
+                  }
+                ],
+                "lease": {
+                  "token": "00000000-0000-4000-8000-000000000014",
+                  "workerId": "worker",
+                  "until": 1769862956789
+                }
+              }
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "complete-finish",
+          "state": "active",
+          "data": {
+            "hash": "1bdaf2993c36a65929fedaf0c5d8f886ad8ebc2153558e8d0adf9d16278bedbd",
+            "result": {
+              "id": "pipeline",
+              "status": "succeeded",
+              "revision": 5,
+              "createdAt": 1769862896789,
+              "expiresAt": 1769863796789,
+              "steps": [
+                {
+                  "id": "prepare",
+                  "budgets": [
+                    {
+                      "feature": "budget",
+                      "amount": "3"
+                    }
+                  ],
+                  "maxAttempts": 3,
+                  "status": "succeeded",
+                  "attempts": 1,
+                  "availableAt": 1769862896789,
+                  "reservations": [
+                    {
+                      "feature": "budget",
+                      "reservationId": "00000000-0000-4000-8000-00000000000a"
+                    }
+                  ],
+                  "usageIds": ["00000000-0000-4000-8000-000000000012"]
+                },
+                {
+                  "id": "finish",
+                  "dependsOn": ["prepare"],
+                  "budgets": [
+                    {
+                      "feature": "budget",
+                      "amount": "4"
+                    }
+                  ],
+                  "maxAttempts": 3,
+                  "status": "succeeded",
+                  "attempts": 1,
+                  "availableAt": 1769862896789,
+                  "reservations": [
+                    {
+                      "feature": "budget",
+                      "reservationId": "00000000-0000-4000-8000-00000000000b"
+                    }
+                  ],
+                  "usageIds": ["00000000-0000-4000-8000-000000000018"]
+                }
+              ]
+            },
+            "createdAt": 1769862896789
+          }
+        }
+      ],
+      "inbox": [],
+      "work": [
+        {
+          "id": "workflow:00000000-0000-4000-8000-00000000000c",
+          "state": "internal_pending",
+          "data": {
+            "id": "workflow:00000000-0000-4000-8000-00000000000c",
+            "kind": "workflow_timeout",
+            "payload": {
+              "workflowId": "pipeline"
+            },
+            "status": "pending",
+            "attempts": 0,
+            "availableAt": 1769863796789,
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "workflow:00000000-0000-4000-8000-00000000000f",
+          "state": "internal_pending",
+          "data": {
+            "id": "workflow:00000000-0000-4000-8000-00000000000f",
+            "kind": "workflow_timeout",
+            "payload": {
+              "workflowId": "pipeline",
+              "token": "00000000-0000-4000-8000-00000000000e"
+            },
+            "status": "pending",
+            "attempts": 0,
+            "availableAt": 1769862956789,
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "workflow:00000000-0000-4000-8000-000000000015",
+          "state": "internal_pending",
+          "data": {
+            "id": "workflow:00000000-0000-4000-8000-000000000015",
+            "kind": "workflow_timeout",
+            "payload": {
+              "workflowId": "pipeline",
+              "token": "00000000-0000-4000-8000-000000000014"
+            },
+            "status": "pending",
+            "attempts": 0,
+            "availableAt": 1769862956789,
+            "createdAt": 1769862896789
+          }
+        }
+      ],
+      "events": [
+        {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "type": "credits.granted",
+            "customerId": "fixture",
+            "data": {
+              "id": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+              "feature": "budget",
+              "amount": "30.00",
+              "expiresAt": 1769949296789,
+              "priority": -1,
+              "origin": "manual",
+              "sourceId": "fund",
+              "createdAt": 1769862896789
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000006",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000006",
+            "type": "usage.corrected",
+            "customerId": "fixture",
+            "data": {
+              "id": "00000000-0000-4000-8000-000000000005",
+              "feature": "tokens",
+              "quantity": "-1.000001",
+              "charged": "-0.5",
+              "planVersion": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff",
+              "allocations": [
+                {
+                  "grantId": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+                  "amount": "-0.5"
+                }
+              ],
+              "createdAt": 1769862896789,
+              "properties": {
+                "region": "us"
+              },
+              "reverses": "00000000-0000-4000-8000-000000000003"
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-00000000000d",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-00000000000d",
+            "type": "workflow.created",
+            "customerId": "fixture",
+            "data": {
+              "workflowId": "pipeline",
+              "revision": 1,
+              "status": "active"
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000010",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000010",
+            "type": "workflow.claimed",
+            "customerId": "fixture",
+            "data": {
+              "workflowId": "pipeline",
+              "revision": 2,
+              "status": "active"
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000013",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000013",
+            "type": "workflow.completed",
+            "customerId": "fixture",
+            "data": {
+              "workflowId": "pipeline",
+              "revision": 3,
+              "status": "active"
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000016",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000016",
+            "type": "workflow.claimed",
+            "customerId": "fixture",
+            "data": {
+              "workflowId": "pipeline",
+              "revision": 4,
+              "status": "active"
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000019",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000019",
+            "type": "workflow.completed",
+            "customerId": "fixture",
+            "data": {
+              "workflowId": "pipeline",
+              "revision": 5,
+              "status": "succeeded"
+            },
+            "createdAt": 1769862896789
+          }
+        }
+      ],
+      "audit": [
+        {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "type": "credits.granted",
+            "customerId": "fixture",
+            "createdAt": 1769862896789,
+            "data": {
+              "id": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+              "feature": "budget",
+              "amount": "30.00",
+              "expiresAt": 1769949296789,
+              "priority": -1,
+              "origin": "manual",
+              "sourceId": "fund",
+              "createdAt": 1769862896789
+            }
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000006",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000006",
+            "type": "usage.corrected",
+            "customerId": "fixture",
+            "createdAt": 1769862896789,
+            "data": {
+              "id": "00000000-0000-4000-8000-000000000005",
+              "feature": "tokens",
+              "quantity": "-1.000001",
+              "charged": "-0.5",
+              "planVersion": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff",
+              "allocations": [
+                {
+                  "grantId": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+                  "amount": "-0.5"
+                }
+              ],
+              "createdAt": 1769862896789,
+              "properties": {
+                "region": "us"
+              },
+              "reverses": "00000000-0000-4000-8000-000000000003"
+            }
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-00000000000d",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-00000000000d",
+            "type": "workflow.created",
+            "customerId": "fixture",
+            "createdAt": 1769862896789,
+            "data": {
+              "workflowId": "pipeline",
+              "revision": 1,
+              "status": "active"
+            }
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000010",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000010",
+            "type": "workflow.claimed",
+            "customerId": "fixture",
+            "createdAt": 1769862896789,
+            "data": {
+              "workflowId": "pipeline",
+              "revision": 2,
+              "status": "active"
+            }
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000013",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000013",
+            "type": "workflow.completed",
+            "customerId": "fixture",
+            "createdAt": 1769862896789,
+            "data": {
+              "workflowId": "pipeline",
+              "revision": 3,
+              "status": "active"
+            }
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000016",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000016",
+            "type": "workflow.claimed",
+            "customerId": "fixture",
+            "createdAt": 1769862896789,
+            "data": {
+              "workflowId": "pipeline",
+              "revision": 4,
+              "status": "active"
+            }
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000019",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000019",
+            "type": "workflow.completed",
+            "customerId": "fixture",
+            "createdAt": 1769862896789,
+            "data": {
+              "workflowId": "pipeline",
+              "revision": 5,
+              "status": "succeeded"
+            }
+          }
+        }
+      ],
+      "counters": [
+        {
+          "id": "feature-kind:credits",
+          "state": "active",
+          "data": {
+            "kind": "consumable"
+          }
+        },
+        {
+          "id": "feature-kind:tokens",
+          "state": "active",
+          "data": {
+            "kind": "consumable"
+          }
+        },
+        {
+          "id": "grant:016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+          "state": "active",
+          "data": {
+            "spent": "0",
+            "held": "0"
+          }
+        },
+        {
+          "id": "grant:8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+          "state": "active",
+          "data": {
+            "spent": "10.25",
+            "held": "0"
+          }
+        }
+      ],
+      "licenses": [],
+      "workflows": [
+        {
+          "id": "pipeline",
+          "state": "succeeded",
+          "data": {
+            "id": "pipeline",
+            "status": "succeeded",
+            "revision": 5,
+            "createdAt": 1769862896789,
+            "expiresAt": 1769863796789,
+            "steps": [
+              {
+                "id": "prepare",
+                "budgets": [
+                  {
+                    "feature": "budget",
+                    "amount": "3"
+                  }
+                ],
+                "maxAttempts": 3,
+                "status": "succeeded",
+                "attempts": 1,
+                "availableAt": 1769862896789,
+                "reservations": [
+                  {
+                    "feature": "budget",
+                    "reservationId": "00000000-0000-4000-8000-00000000000a"
+                  }
+                ],
+                "usageIds": ["00000000-0000-4000-8000-000000000012"]
+              },
+              {
+                "id": "finish",
+                "dependsOn": ["prepare"],
+                "budgets": [
+                  {
+                    "feature": "budget",
+                    "amount": "4"
+                  }
+                ],
+                "maxAttempts": 3,
+                "status": "succeeded",
+                "attempts": 1,
+                "availableAt": 1769862896789,
+                "reservations": [
+                  {
+                    "feature": "budget",
+                    "reservationId": "00000000-0000-4000-8000-00000000000b"
+                  }
+                ],
+                "usageIds": ["00000000-0000-4000-8000-000000000018"]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "grantStates": {
+      "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18": "active",
+      "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c": "active"
+    },
+    "policyCounters": [],
+    "format": 1,
+    "environment": "test",
+    "customer": {
+      "id": "fixture",
+      "metadata": {
+        "account": "organization"
+      },
+      "controls": {}
+    },
+    "entities": [
+      {
+        "id": "project",
+        "metadata": {
+          "name": "Project"
+        }
+      }
+    ],
+    "grants": [
+      {
+        "id": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+        "feature": "credits",
+        "amount": "20",
+        "expiresAt": 1772282096789,
+        "priority": 0,
+        "origin": "subscription",
+        "sourceId": "a384ee0f125e7472582e4fd4580c2c3a0ddc59fc41fa4b3dd809d5c2f92ee5e2",
+        "createdAt": 1769862896789
+      },
+      {
+        "id": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+        "feature": "budget",
+        "amount": "30.00",
+        "expiresAt": 1769949296789,
+        "priority": -1,
+        "origin": "manual",
+        "sourceId": "fund",
+        "createdAt": 1769862896789
+      }
+    ],
+    "positions": [
+      {
+        "grantId": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+        "spent": "0",
+        "held": "0"
+      },
+      {
+        "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+        "spent": "10.25",
+        "held": "0"
+      }
+    ],
+    "subscriptions": [
+      {
+        "id": "a384ee0f125e7472582e4fd4580c2c3a0ddc59fc41fa4b3dd809d5c2f92ee5e2",
+        "plan": {
+          "id": "free",
+          "name": "Free",
+          "kind": "free",
+          "items": [
+            {
+              "feature": "credits",
+              "included": "20.00",
+              "reset": "month",
+              "kind": "consumable"
+            },
+            {
+              "feature": "tokens",
+              "pool": "credits",
+              "rate": {
+                "amount": "0.5"
+              },
+              "kind": "consumable"
+            }
+          ],
+          "version": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff",
+          "revision": 1
+        },
+        "status": "active",
+        "periodStart": 1769862896789,
+        "periodEnd": 1772282096789,
+        "paidThrough": 9007199254740991,
+        "quantity": "1"
+      }
+    ],
+    "reservations": [],
+    "licenses": [],
+    "quantities": [],
+    "blockers": []
+  },
+  "records": [
+    {
+      "scope": "test:c:fixture",
+      "table": "customers",
+      "rows": [
+        {
+          "id": "fixture",
+          "state": "active",
+          "data": {
+            "id": "fixture",
+            "metadata": {
+              "account": "organization"
+            },
+            "controls": {}
+          }
+        }
+      ]
+    },
+    {
+      "scope": "test:c:fixture",
+      "table": "entities",
+      "rows": [
+        {
+          "id": "project",
+          "state": "active",
+          "data": {
+            "id": "project",
+            "metadata": {
+              "name": "Project"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scope": "test:c:fixture",
+      "table": "subscriptions",
+      "rows": [
+        {
+          "id": "a384ee0f125e7472582e4fd4580c2c3a0ddc59fc41fa4b3dd809d5c2f92ee5e2",
+          "state": "active",
+          "data": {
+            "id": "a384ee0f125e7472582e4fd4580c2c3a0ddc59fc41fa4b3dd809d5c2f92ee5e2",
+            "plan": {
+              "id": "free",
+              "name": "Free",
+              "kind": "free",
+              "items": [
+                {
+                  "feature": "credits",
+                  "included": "20.00",
+                  "reset": "month",
+                  "kind": "consumable"
+                },
+                {
+                  "feature": "tokens",
+                  "pool": "credits",
+                  "rate": {
+                    "amount": "0.5"
+                  },
+                  "kind": "consumable"
+                }
+              ],
+              "version": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff",
+              "revision": 1
+            },
+            "status": "active",
+            "periodStart": 1769862896789,
+            "periodEnd": 1772282096789,
+            "paidThrough": 9007199254740991,
+            "quantity": "1"
+          }
+        }
+      ]
+    },
+    {
+      "scope": "test:c:fixture",
+      "table": "grants",
+      "rows": [
+        {
+          "id": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+          "state": "active",
+          "data": {
+            "id": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+            "feature": "credits",
+            "amount": "20",
+            "expiresAt": 1772282096789,
+            "priority": 0,
+            "origin": "subscription",
+            "sourceId": "a384ee0f125e7472582e4fd4580c2c3a0ddc59fc41fa4b3dd809d5c2f92ee5e2",
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+          "state": "active",
+          "data": {
+            "id": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+            "feature": "budget",
+            "amount": "30.00",
+            "expiresAt": 1769949296789,
+            "priority": -1,
+            "origin": "manual",
+            "sourceId": "fund",
+            "createdAt": 1769862896789
+          }
+        }
+      ]
+    },
+    {
+      "scope": "test:c:fixture",
+      "table": "movements",
+      "rows": [
+        {
+          "id": "00000000-0000-4000-8000-000000000002",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000002",
+            "grantId": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+            "amount": "0.5",
+            "operationId": "consume",
+            "createdAt": 1769862896789,
+            "reason": "consume"
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000004",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000004",
+            "grantId": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+            "amount": "-0.5",
+            "operationId": "correct",
+            "createdAt": 1769862896789,
+            "reason": "fixture correction",
+            "reverses": "00000000-0000-4000-8000-000000000003"
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000008",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000008",
+            "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+            "amount": "5.25",
+            "operationId": "settle",
+            "createdAt": 1769862896789,
+            "reason": "settle"
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000011",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000011",
+            "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+            "amount": "2",
+            "operationId": "complete-prepare",
+            "createdAt": 1769862896789,
+            "reason": "settle"
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000017",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000017",
+            "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+            "amount": "3",
+            "operationId": "complete-finish",
+            "createdAt": 1769862896789,
+            "reason": "settle"
+          }
+        }
+      ]
+    },
+    {
+      "scope": "test:c:fixture",
+      "table": "reservations",
+      "rows": [
+        {
+          "id": "00000000-0000-4000-8000-000000000007",
+          "state": "settled",
+          "data": {
+            "feature": "budget",
+            "amount": "7.50",
+            "expiresAt": 1769863796789,
+            "id": "00000000-0000-4000-8000-000000000007",
+            "allocations": [
+              {
+                "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+                "amount": "7.5"
+              }
+            ],
+            "status": "settled"
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-00000000000a",
+          "state": "settled",
+          "data": {
+            "feature": "budget",
+            "amount": "3",
+            "expiresAt": 1769863796789,
+            "id": "00000000-0000-4000-8000-00000000000a",
+            "allocations": [
+              {
+                "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+                "amount": "3"
+              }
+            ],
+            "status": "settled"
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-00000000000b",
+          "state": "settled",
+          "data": {
+            "feature": "budget",
+            "amount": "4",
+            "expiresAt": 1769863796789,
+            "id": "00000000-0000-4000-8000-00000000000b",
+            "allocations": [
+              {
+                "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+                "amount": "4"
+              }
+            ],
+            "status": "settled"
+          }
+        }
+      ]
+    },
+    {
+      "scope": "test:c:fixture",
+      "table": "usage",
+      "rows": [
+        {
+          "id": "00000000-0000-4000-8000-000000000003",
+          "state": "reversed",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000003",
+            "feature": "tokens",
+            "quantity": "1.000001",
+            "charged": "0.5",
+            "planVersion": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff",
+            "allocations": [
+              {
+                "grantId": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+                "amount": "0.5"
+              }
+            ],
+            "createdAt": 1769862896789,
+            "properties": {
+              "region": "us"
+            }
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000005",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000005",
+            "feature": "tokens",
+            "quantity": "-1.000001",
+            "charged": "-0.5",
+            "planVersion": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff",
+            "allocations": [
+              {
+                "grantId": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+                "amount": "-0.5"
+              }
+            ],
+            "createdAt": 1769862896789,
+            "properties": {
+              "region": "us"
+            },
+            "reverses": "00000000-0000-4000-8000-000000000003"
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000009",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000009",
+            "feature": "budget",
+            "quantity": "5.25",
+            "charged": "5.25",
+            "allocations": [
+              {
+                "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+                "amount": "5.25"
+              }
+            ],
+            "createdAt": 1769862896789,
+            "properties": {
+              "reservationId": "00000000-0000-4000-8000-000000000007"
+            }
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000012",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000012",
+            "feature": "budget",
+            "quantity": "2",
+            "charged": "2",
+            "allocations": [
+              {
+                "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+                "amount": "2"
+              }
+            ],
+            "createdAt": 1769862896789,
+            "properties": {
+              "workflowId": "pipeline",
+              "stepId": "prepare",
+              "reservationId": "00000000-0000-4000-8000-00000000000a"
+            }
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000018",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000018",
+            "feature": "budget",
+            "quantity": "3",
+            "charged": "3",
+            "allocations": [
+              {
+                "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+                "amount": "3"
+              }
+            ],
+            "createdAt": 1769862896789,
+            "properties": {
+              "workflowId": "pipeline",
+              "stepId": "finish",
+              "reservationId": "00000000-0000-4000-8000-00000000000b"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scope": "test:c:fixture",
+      "table": "operations",
+      "rows": [
+        {
+          "id": "attach",
+          "state": "active",
+          "data": {
+            "hash": "ee7dd77bc464d9d962806786bb9984021032d3d94aaee615f6024e765d9ce7ee",
+            "result": {
+              "id": "a384ee0f125e7472582e4fd4580c2c3a0ddc59fc41fa4b3dd809d5c2f92ee5e2",
+              "plan": {
+                "id": "free",
+                "name": "Free",
+                "kind": "free",
+                "items": [
+                  {
+                    "feature": "credits",
+                    "included": "20.00",
+                    "reset": "month",
+                    "kind": "consumable"
+                  },
+                  {
+                    "feature": "tokens",
+                    "pool": "credits",
+                    "rate": {
+                      "amount": "0.5"
+                    },
+                    "kind": "consumable"
+                  }
+                ],
+                "version": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff",
+                "revision": 1
+              },
+              "status": "active",
+              "periodStart": 1769862896789,
+              "periodEnd": 1772282096789,
+              "paidThrough": 9007199254740991,
+              "quantity": "1"
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "claim-finish",
+          "state": "active",
+          "data": {
+            "hash": "0d90aac3bfcd7a19d03472243c6d9a985d4488c14e28a9fd5de6d764f1b3f0d9",
+            "result": {
+              "claimed": true,
+              "workflowId": "pipeline",
+              "step": {
+                "id": "finish",
+                "dependsOn": ["prepare"],
+                "budgets": [
+                  {
+                    "feature": "budget",
+                    "amount": "4"
+                  }
+                ],
+                "maxAttempts": 3,
+                "status": "running",
+                "attempts": 1,
+                "availableAt": 1769862896789,
+                "reservations": [
+                  {
+                    "feature": "budget",
+                    "reservationId": "00000000-0000-4000-8000-00000000000b"
+                  }
+                ],
+                "lease": {
+                  "token": "00000000-0000-4000-8000-000000000014",
+                  "workerId": "worker",
+                  "until": 1769862956789
+                }
+              }
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "claim-prepare",
+          "state": "active",
+          "data": {
+            "hash": "7e7597c593dfac92a266fbaf91a957d07db4e452f915121dbafa2ce4361bc334",
+            "result": {
+              "claimed": true,
+              "workflowId": "pipeline",
+              "step": {
+                "id": "prepare",
+                "budgets": [
+                  {
+                    "feature": "budget",
+                    "amount": "3"
+                  }
+                ],
+                "maxAttempts": 3,
+                "status": "running",
+                "attempts": 1,
+                "availableAt": 1769862896789,
+                "reservations": [
+                  {
+                    "feature": "budget",
+                    "reservationId": "00000000-0000-4000-8000-00000000000a"
+                  }
+                ],
+                "lease": {
+                  "token": "00000000-0000-4000-8000-00000000000e",
+                  "workerId": "worker",
+                  "until": 1769862956789
+                }
+              }
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "complete-finish",
+          "state": "active",
+          "data": {
+            "hash": "1bdaf2993c36a65929fedaf0c5d8f886ad8ebc2153558e8d0adf9d16278bedbd",
+            "result": {
+              "id": "pipeline",
+              "status": "succeeded",
+              "revision": 5,
+              "createdAt": 1769862896789,
+              "expiresAt": 1769863796789,
+              "steps": [
+                {
+                  "id": "prepare",
+                  "budgets": [
+                    {
+                      "feature": "budget",
+                      "amount": "3"
+                    }
+                  ],
+                  "maxAttempts": 3,
+                  "status": "succeeded",
+                  "attempts": 1,
+                  "availableAt": 1769862896789,
+                  "reservations": [
+                    {
+                      "feature": "budget",
+                      "reservationId": "00000000-0000-4000-8000-00000000000a"
+                    }
+                  ],
+                  "usageIds": ["00000000-0000-4000-8000-000000000012"]
+                },
+                {
+                  "id": "finish",
+                  "dependsOn": ["prepare"],
+                  "budgets": [
+                    {
+                      "feature": "budget",
+                      "amount": "4"
+                    }
+                  ],
+                  "maxAttempts": 3,
+                  "status": "succeeded",
+                  "attempts": 1,
+                  "availableAt": 1769862896789,
+                  "reservations": [
+                    {
+                      "feature": "budget",
+                      "reservationId": "00000000-0000-4000-8000-00000000000b"
+                    }
+                  ],
+                  "usageIds": ["00000000-0000-4000-8000-000000000018"]
+                }
+              ]
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "complete-prepare",
+          "state": "active",
+          "data": {
+            "hash": "b7dbb42ea0da7ebf440823fe0be648e410d713e619c08e59e50fc0f867f7fde6",
+            "result": {
+              "id": "pipeline",
+              "status": "active",
+              "revision": 3,
+              "createdAt": 1769862896789,
+              "expiresAt": 1769863796789,
+              "steps": [
+                {
+                  "id": "prepare",
+                  "budgets": [
+                    {
+                      "feature": "budget",
+                      "amount": "3"
+                    }
+                  ],
+                  "maxAttempts": 3,
+                  "status": "succeeded",
+                  "attempts": 1,
+                  "availableAt": 1769862896789,
+                  "reservations": [
+                    {
+                      "feature": "budget",
+                      "reservationId": "00000000-0000-4000-8000-00000000000a"
+                    }
+                  ],
+                  "usageIds": ["00000000-0000-4000-8000-000000000012"]
+                },
+                {
+                  "id": "finish",
+                  "dependsOn": ["prepare"],
+                  "budgets": [
+                    {
+                      "feature": "budget",
+                      "amount": "4"
+                    }
+                  ],
+                  "maxAttempts": 3,
+                  "status": "pending",
+                  "attempts": 0,
+                  "availableAt": 1769862896789,
+                  "reservations": [
+                    {
+                      "feature": "budget",
+                      "reservationId": "00000000-0000-4000-8000-00000000000b"
+                    }
+                  ]
+                }
+              ]
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "consume",
+          "state": "active",
+          "data": {
+            "hash": "46d0983ce74368ca9452d0bc220dcf56ca9a2e3265f2d1f662544a56cb8421a7",
+            "result": {
+              "id": "00000000-0000-4000-8000-000000000003",
+              "feature": "tokens",
+              "quantity": "1.000001",
+              "charged": "0.5",
+              "planVersion": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff",
+              "allocations": [
+                {
+                  "grantId": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+                  "amount": "0.5"
+                }
+              ],
+              "createdAt": 1769862896789,
+              "properties": {
+                "region": "us"
+              }
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "correct",
+          "state": "active",
+          "data": {
+            "hash": "b875288433ec3cdc317f3b2cf1ef3bec94bd6869fdaf75cd3c3d5a4d675be98c",
+            "result": {
+              "status": "corrected",
+              "usage": {
+                "id": "00000000-0000-4000-8000-000000000005",
+                "feature": "tokens",
+                "quantity": "-1.000001",
+                "charged": "-0.5",
+                "planVersion": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff",
+                "allocations": [
+                  {
+                    "grantId": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+                    "amount": "-0.5"
+                  }
+                ],
+                "createdAt": 1769862896789,
+                "properties": {
+                  "region": "us"
+                },
+                "reverses": "00000000-0000-4000-8000-000000000003"
+              }
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "create",
+          "state": "active",
+          "data": {
+            "hash": "c451dcea466ecbcabd4835487215feed58bfa5fe857edd65386aaa5e313e1176",
+            "result": {
+              "id": "fixture",
+              "metadata": {
+                "account": "organization"
+              },
+              "controls": {}
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "entity",
+          "state": "active",
+          "data": {
+            "hash": "b7c98907ba386a76a31317880827f69cf206d6b415aaea979311384467b64e14",
+            "result": {
+              "id": "project",
+              "metadata": {
+                "name": "Project"
+              }
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "fund",
+          "state": "active",
+          "data": {
+            "hash": "b768b297ed86a2ec89b334a39281cb5eb49637bb90258d16034dbe03a7dcdd02",
+            "result": {
+              "id": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+              "feature": "budget",
+              "amount": "30.00",
+              "expiresAt": 1769949296789,
+              "priority": -1,
+              "origin": "manual",
+              "sourceId": "fund",
+              "createdAt": 1769862896789
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "reserve",
+          "state": "active",
+          "data": {
+            "hash": "2bbc79a74f1f34c519eead26c334c8fee57cee010d10e1a99acf894d57e5d936",
+            "result": {
+              "feature": "budget",
+              "amount": "7.50",
+              "expiresAt": 1769863796789,
+              "id": "00000000-0000-4000-8000-000000000007",
+              "allocations": [
+                {
+                  "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+                  "amount": "7.5"
+                }
+              ],
+              "status": "held"
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "settle",
+          "state": "active",
+          "data": {
+            "hash": "87cdfdded73e7214c59f0208604e2c116619a539f213b4772a88eb75f7e90221",
+            "result": {
+              "status": "settled",
+              "reservation": {
+                "feature": "budget",
+                "amount": "7.50",
+                "expiresAt": 1769863796789,
+                "id": "00000000-0000-4000-8000-000000000007",
+                "allocations": [
+                  {
+                    "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+                    "amount": "7.5"
+                  }
+                ],
+                "status": "settled"
+              },
+              "usage": {
+                "id": "00000000-0000-4000-8000-000000000009",
+                "feature": "budget",
+                "quantity": "5.25",
+                "charged": "5.25",
+                "allocations": [
+                  {
+                    "grantId": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+                    "amount": "5.25"
+                  }
+                ],
+                "createdAt": 1769862896789,
+                "properties": {
+                  "reservationId": "00000000-0000-4000-8000-000000000007"
+                }
+              }
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "workflow",
+          "state": "active",
+          "data": {
+            "hash": "92619bfa1b63f194b6be7bfbe5110b8dfc0bdf51d6f6ca19d3ae1ac3a14b04e5",
+            "result": {
+              "id": "pipeline",
+              "status": "active",
+              "revision": 1,
+              "createdAt": 1769862896789,
+              "expiresAt": 1769863796789,
+              "steps": [
+                {
+                  "id": "prepare",
+                  "budgets": [
+                    {
+                      "feature": "budget",
+                      "amount": "3"
+                    }
+                  ],
+                  "maxAttempts": 3,
+                  "status": "pending",
+                  "attempts": 0,
+                  "availableAt": 1769862896789,
+                  "reservations": [
+                    {
+                      "feature": "budget",
+                      "reservationId": "00000000-0000-4000-8000-00000000000a"
+                    }
+                  ]
+                },
+                {
+                  "id": "finish",
+                  "dependsOn": ["prepare"],
+                  "budgets": [
+                    {
+                      "feature": "budget",
+                      "amount": "4"
+                    }
+                  ],
+                  "maxAttempts": 3,
+                  "status": "pending",
+                  "attempts": 0,
+                  "availableAt": 1769862896789,
+                  "reservations": [
+                    {
+                      "feature": "budget",
+                      "reservationId": "00000000-0000-4000-8000-00000000000b"
+                    }
+                  ]
+                }
+              ]
+            },
+            "createdAt": 1769862896789
+          }
+        }
+      ]
+    },
+    {
+      "scope": "test:c:fixture",
+      "table": "work",
+      "rows": [
+        {
+          "id": "workflow:00000000-0000-4000-8000-00000000000c",
+          "state": "internal_pending",
+          "data": {
+            "id": "workflow:00000000-0000-4000-8000-00000000000c",
+            "kind": "workflow_timeout",
+            "payload": {
+              "workflowId": "pipeline"
+            },
+            "status": "pending",
+            "attempts": 0,
+            "availableAt": 1769863796789,
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "workflow:00000000-0000-4000-8000-00000000000f",
+          "state": "internal_pending",
+          "data": {
+            "id": "workflow:00000000-0000-4000-8000-00000000000f",
+            "kind": "workflow_timeout",
+            "payload": {
+              "workflowId": "pipeline",
+              "token": "00000000-0000-4000-8000-00000000000e"
+            },
+            "status": "pending",
+            "attempts": 0,
+            "availableAt": 1769862956789,
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "workflow:00000000-0000-4000-8000-000000000015",
+          "state": "internal_pending",
+          "data": {
+            "id": "workflow:00000000-0000-4000-8000-000000000015",
+            "kind": "workflow_timeout",
+            "payload": {
+              "workflowId": "pipeline",
+              "token": "00000000-0000-4000-8000-000000000014"
+            },
+            "status": "pending",
+            "attempts": 0,
+            "availableAt": 1769862956789,
+            "createdAt": 1769862896789
+          }
+        }
+      ]
+    },
+    {
+      "scope": "test:c:fixture",
+      "table": "events",
+      "rows": [
+        {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "type": "credits.granted",
+            "customerId": "fixture",
+            "data": {
+              "id": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+              "feature": "budget",
+              "amount": "30.00",
+              "expiresAt": 1769949296789,
+              "priority": -1,
+              "origin": "manual",
+              "sourceId": "fund",
+              "createdAt": 1769862896789
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000006",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000006",
+            "type": "usage.corrected",
+            "customerId": "fixture",
+            "data": {
+              "id": "00000000-0000-4000-8000-000000000005",
+              "feature": "tokens",
+              "quantity": "-1.000001",
+              "charged": "-0.5",
+              "planVersion": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff",
+              "allocations": [
+                {
+                  "grantId": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+                  "amount": "-0.5"
+                }
+              ],
+              "createdAt": 1769862896789,
+              "properties": {
+                "region": "us"
+              },
+              "reverses": "00000000-0000-4000-8000-000000000003"
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-00000000000d",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-00000000000d",
+            "type": "workflow.created",
+            "customerId": "fixture",
+            "data": {
+              "workflowId": "pipeline",
+              "revision": 1,
+              "status": "active"
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000010",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000010",
+            "type": "workflow.claimed",
+            "customerId": "fixture",
+            "data": {
+              "workflowId": "pipeline",
+              "revision": 2,
+              "status": "active"
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000013",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000013",
+            "type": "workflow.completed",
+            "customerId": "fixture",
+            "data": {
+              "workflowId": "pipeline",
+              "revision": 3,
+              "status": "active"
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000016",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000016",
+            "type": "workflow.claimed",
+            "customerId": "fixture",
+            "data": {
+              "workflowId": "pipeline",
+              "revision": 4,
+              "status": "active"
+            },
+            "createdAt": 1769862896789
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000019",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000019",
+            "type": "workflow.completed",
+            "customerId": "fixture",
+            "data": {
+              "workflowId": "pipeline",
+              "revision": 5,
+              "status": "succeeded"
+            },
+            "createdAt": 1769862896789
+          }
+        }
+      ]
+    },
+    {
+      "scope": "test:c:fixture",
+      "table": "audit",
+      "rows": [
+        {
+          "id": "00000000-0000-4000-8000-000000000001",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000001",
+            "type": "credits.granted",
+            "customerId": "fixture",
+            "createdAt": 1769862896789,
+            "data": {
+              "id": "8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+              "feature": "budget",
+              "amount": "30.00",
+              "expiresAt": 1769949296789,
+              "priority": -1,
+              "origin": "manual",
+              "sourceId": "fund",
+              "createdAt": 1769862896789
+            }
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000006",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000006",
+            "type": "usage.corrected",
+            "customerId": "fixture",
+            "createdAt": 1769862896789,
+            "data": {
+              "id": "00000000-0000-4000-8000-000000000005",
+              "feature": "tokens",
+              "quantity": "-1.000001",
+              "charged": "-0.5",
+              "planVersion": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff",
+              "allocations": [
+                {
+                  "grantId": "016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+                  "amount": "-0.5"
+                }
+              ],
+              "createdAt": 1769862896789,
+              "properties": {
+                "region": "us"
+              },
+              "reverses": "00000000-0000-4000-8000-000000000003"
+            }
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-00000000000d",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-00000000000d",
+            "type": "workflow.created",
+            "customerId": "fixture",
+            "createdAt": 1769862896789,
+            "data": {
+              "workflowId": "pipeline",
+              "revision": 1,
+              "status": "active"
+            }
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000010",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000010",
+            "type": "workflow.claimed",
+            "customerId": "fixture",
+            "createdAt": 1769862896789,
+            "data": {
+              "workflowId": "pipeline",
+              "revision": 2,
+              "status": "active"
+            }
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000013",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000013",
+            "type": "workflow.completed",
+            "customerId": "fixture",
+            "createdAt": 1769862896789,
+            "data": {
+              "workflowId": "pipeline",
+              "revision": 3,
+              "status": "active"
+            }
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000016",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000016",
+            "type": "workflow.claimed",
+            "customerId": "fixture",
+            "createdAt": 1769862896789,
+            "data": {
+              "workflowId": "pipeline",
+              "revision": 4,
+              "status": "active"
+            }
+          }
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000019",
+          "state": "active",
+          "data": {
+            "id": "00000000-0000-4000-8000-000000000019",
+            "type": "workflow.completed",
+            "customerId": "fixture",
+            "createdAt": 1769862896789,
+            "data": {
+              "workflowId": "pipeline",
+              "revision": 5,
+              "status": "succeeded"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "scope": "test:c:fixture",
+      "table": "counters",
+      "rows": [
+        {
+          "id": "feature-kind:credits",
+          "state": "active",
+          "data": {
+            "kind": "consumable"
+          }
+        },
+        {
+          "id": "feature-kind:tokens",
+          "state": "active",
+          "data": {
+            "kind": "consumable"
+          }
+        },
+        {
+          "id": "grant:016d5c1b8cb873a309adb51baeea1331275d3a6f51b2dc18",
+          "state": "active",
+          "data": {
+            "spent": "0",
+            "held": "0"
+          }
+        },
+        {
+          "id": "grant:8f6052eae74f1f8888a4bf49cc98140d904b62a427cb88c12c552f4c73327d9c",
+          "state": "active",
+          "data": {
+            "spent": "10.25",
+            "held": "0"
+          }
+        }
+      ]
+    },
+    {
+      "scope": "test:c:fixture",
+      "table": "workflows",
+      "rows": [
+        {
+          "id": "pipeline",
+          "state": "succeeded",
+          "data": {
+            "id": "pipeline",
+            "status": "succeeded",
+            "revision": 5,
+            "createdAt": 1769862896789,
+            "expiresAt": 1769863796789,
+            "steps": [
+              {
+                "id": "prepare",
+                "budgets": [
+                  {
+                    "feature": "budget",
+                    "amount": "3"
+                  }
+                ],
+                "maxAttempts": 3,
+                "status": "succeeded",
+                "attempts": 1,
+                "availableAt": 1769862896789,
+                "reservations": [
+                  {
+                    "feature": "budget",
+                    "reservationId": "00000000-0000-4000-8000-00000000000a"
+                  }
+                ],
+                "usageIds": ["00000000-0000-4000-8000-000000000012"]
+              },
+              {
+                "id": "finish",
+                "dependsOn": ["prepare"],
+                "budgets": [
+                  {
+                    "feature": "budget",
+                    "amount": "4"
+                  }
+                ],
+                "maxAttempts": 3,
+                "status": "succeeded",
+                "attempts": 1,
+                "availableAt": 1769862896789,
+                "reservations": [
+                  {
+                    "feature": "budget",
+                    "reservationId": "00000000-0000-4000-8000-00000000000b"
+                  }
+                ],
+                "usageIds": ["00000000-0000-4000-8000-000000000018"]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "scope": "test:catalog",
+      "table": "catalog",
+      "rows": [
+        {
+          "id": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff",
+          "state": "published",
+          "data": {
+            "id": "free",
+            "name": "Free",
+            "kind": "free",
+            "items": [
+              {
+                "feature": "credits",
+                "included": "20.00",
+                "reset": "month",
+                "kind": "consumable"
+              },
+              {
+                "feature": "tokens",
+                "pool": "credits",
+                "rate": {
+                  "amount": "0.5"
+                },
+                "kind": "consumable"
+              }
+            ],
+            "version": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff",
+            "revision": 1
+          }
+        },
+        {
+          "id": "features",
+          "state": "features",
+          "data": [
+            {
+              "id": "credits",
+              "kind": "consumable"
+            },
+            {
+              "id": "tokens",
+              "kind": "consumable"
+            }
+          ]
+        },
+        {
+          "id": "head",
+          "state": "head",
+          "data": {
+            "revision": 1,
+            "hash": "0e4131e7bb55fc0303b9655889835a15313dce0cfef0e296281682fe53ec8541"
+          }
+        },
+        {
+          "id": "plan:free",
+          "state": "pointer",
+          "data": {
+            "version": "1449ebd9de1935c87152221b723c0e0946ffea7319d2ebb926f50ac044e76fff"
+          }
+        }
+      ]
+    }
+  ]
+}

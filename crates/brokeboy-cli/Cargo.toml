@@ -1,0 +1,20 @@
+[package]
+name = "brokeboy-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[[bin]]
+name = "brokeboy-native"
+path = "src/main.rs"
+
+[dependencies]
+brokeboy-core.workspace = true
+brokeboy = { workspace = true, features = ["postgres", "mysql", "sqlite", "stripe"] }
+tokio.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

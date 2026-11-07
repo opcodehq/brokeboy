@@ -1,0 +1,23 @@
+[package]
+name = "brokeboy-node"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+brokeboy-core.workspace = true
+brokeboy = { workspace = true, features = ["sqlite", "postgres", "mysql", "stripe"] }
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+sqlx = { workspace = true, features = ["sqlite"] }
+napi = { version = "3.16.1", default-features = false, features = ["napi8", "tokio_rt"] }
+napi-derive = "3"
+
+[build-dependencies]
+napi-build = "2"

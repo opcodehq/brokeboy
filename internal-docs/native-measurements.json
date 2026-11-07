@@ -1,0 +1,24 @@
+{
+  "environment": {
+    "runtime": "v24.22.1",
+    "platform": "linux",
+    "arch": "x64",
+    "kernel": "6.18.56",
+    "cpu": "Intel(R) Xeon(R) Processor @ 2.90GHz",
+    "database": "local file SQLite, four SQLx connections, one customer/grant",
+    "artifact": "release, thin LTO, stripped",
+    "samples": 200
+  },
+  "initializationMs": 0.8253449999999987,
+  "sequential": {
+    "p50Ms": 0.973431000000005,
+    "p95Ms": 1.1974479999999943
+  },
+  "contention": {
+    "concurrentCalls": 200,
+    "batchMs": 282.604232
+  },
+  "nativeBinaryBytes": 16173240,
+  "databaseStatementCount": null,
+  "limits": "Database statement tracing is not yet qualified; local measurements exclude payment networking and are not cross-platform guarantees."
+}
