@@ -110,3 +110,10 @@ Runner availability was restored for this change. [Check run 42423440991](https:
 The initial [artifact run 42423448726](https://github.com/opcodehq/brokeboy/actions/runs/42423448726) passed Linux GNU x64/arm64, macOS arm64 and Windows x64 builds and execution. Its musl jobs exposed a default static-CRT setting that prevents cdylib output and GitHub's unsupported ARM Alpine JavaScript-action environment. macOS x64 also completed successfully. The corrected workflow checks out on the host, builds/executes in a matching Docker container, and disables static CRT for the dynamic addon. `musl_only` permits a targeted rerun. This correction requires a passing rerun; configuration alone is not qualification. The targeted corrected run is [42424037468](https://github.com/opcodehq/brokeboy/actions/runs/42424037468). The native/domain rerun is [42424038093](https://github.com/opcodehq/brokeboy/actions/runs/42424038093).
 
 Earlier hosted runs were blocked by account payment/spending restrictions; they are not passing results. Stable release still requires the broader merchant/recovery qualification in `verification.md`.
+
+
+## GNU deployment baseline
+
+The seven-target run [42424524446](https://github.com/opcodehq/brokeboy/actions/runs/42424524446) passed build and execution on its own runner images, and [42424498980](https://github.com/opcodehq/brokeboy/actions/runs/42424498980) passed the full Rust/Node/Bun qualification matrix for the webhook hardening change. Additional cross-distribution validation found that Ubuntu 24.04's GNU artifact imports `GLIBC_2.38` and fails on this Amazon Linux 2023 VM (`glibc 2.34`). Those GNU artifacts are not suitable for that deployment despite passing on Ubuntu.
+
+The GNU jobs now build and execute on matching manylinux/glibc 2.28 containers and also execute the same artifact on the current GNU host. `gnu_only` permits targeted rebuilding. The new baseline must pass CI and an Amazon Linux load/execution test before GNU artifact qualification is recorded. macOS, Windows and musl remain covered by their own jobs. This does not change billing rules or introduce a compiler requirement for consumers.

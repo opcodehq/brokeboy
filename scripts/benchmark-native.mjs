@@ -12,7 +12,9 @@ const addon = join(directory, "brokeboy.node");
 const fixture = await mkdtemp(join(tmpdir(), "brokeboy-native-benchmark-"));
 let billing;
 try {
+  const loadStarted = performance.now();
   const { NativeBilling } = createRequire(import.meta.url)(addon);
+  const addonLoadMs = performance.now() - loadStarted;
   const schema = spawnSync(
     join(directory, "brokeboy-native"),
     ["schema", "sqlite"],
@@ -98,13 +100,14 @@ try {
           artifact: "release, thin LTO, stripped",
           samples: 200,
         },
+        addonLoadMs,
         initializationMs,
         sequential: { p50Ms: measurements[99], p95Ms: measurements[189] },
         contention: { concurrentCalls: 200, batchMs: contendedBatchMs },
         nativeBinaryBytes: (await stat(addon)).size,
         databaseStatementCount: null,
         limits:
-          "Database statement tracing is not yet qualified; local measurements exclude payment networking and are not cross-platform guarantees.",
+          "Database statement tracing is not yet qualified. Initialization measures native handle opening separately from addon loading, and excludes the SDK platform loader. Local measurements exclude payment networking and are not cross-platform guarantees.",
       },
       null,
       2,
