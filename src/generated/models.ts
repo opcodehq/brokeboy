@@ -282,3 +282,4 @@ export type Workflow = {
   entityId?: string;
   cancellationRequested?: boolean;
 };
+export const MAX_WEBHOOK_BYTES = 8388608;

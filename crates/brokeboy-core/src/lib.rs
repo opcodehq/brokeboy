@@ -8,3 +8,6 @@ pub mod records;
 pub mod schema;
 
 pub use error::{BillingError, Result};
+
+/// Maximum accepted raw payment webhook body, shared with native transports.
+pub const MAX_WEBHOOK_BYTES: usize = 8 * 1024 * 1024;

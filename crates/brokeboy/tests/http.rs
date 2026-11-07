@@ -148,5 +148,16 @@ async fn http_identity_csrf_visibility_and_admin_audit() {
         .to_string();
     assert!(history.contains("operator: support correction"));
     assert_eq!(handler.handle(req("/checkout",Some(json!({"planId":"private","idempotencyKey":"private","successUrl":"https://app.example/success"})),"user","https://app.example")).await.status(),403);
+    assert_eq!(
+        billing
+            .webhook(
+                Default::default(),
+                vec![0; brokeboy_core::MAX_WEBHOOK_BYTES + 1]
+            )
+            .await
+            .unwrap_err()
+            .code,
+        "body_too_large"
+    );
     billing.close().await.unwrap();
 }

@@ -1,4 +1,4 @@
-//! Native storage boundary for the 0.2 port. Production SDK cutover is parity-gated.
+//! Embedded async billing with optional SQL, payment and HTTP integrations.
 pub mod api;
 pub mod catalog;
 #[cfg(any(feature = "sqlite", feature = "postgres", feature = "mysql"))]

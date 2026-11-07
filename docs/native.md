@@ -90,7 +90,7 @@ BROKEBOY_DATABASE_URL=sqlite:///absolute/path/billing.sqlite bun examples/native
 
 The existing `toHandler` from `brokeboy/server` accepts the native handle. Resolve identity and authorize administrators on the server. Public HTTP routes never take the customer's identity from a browser-provided customer ID. React hooks/components continue using those HTTP contracts; `brokeboy/react` imports no native addon.
 
-Rust applications can enable `http` and implement `brokeboy::http::Authorization` for the framework-independent `Handler`. It accepts raw `http::Request<Vec<u8>>` and produces JSON responses. Configure the application origin explicitly. Mount the webhook route with the original raw bytes; request parsing must not alter its body.
+Rust applications can enable `http` and implement `brokeboy::http::Authorization` for the framework-independent `Handler`. It accepts raw `http::Request<Vec<u8>>` and produces JSON responses. Configure the application origin explicitly. Mount the webhook route with the original raw bytes; request parsing must not alter its body. Native webhook ingestion limits raw input to 8 MiB, cancels aborted streams, and verifies the original bytes.
 
 ```ts
 import { Effect } from "effect";

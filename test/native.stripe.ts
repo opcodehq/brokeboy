@@ -9,6 +9,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { test } from "node:test";
+import { Billing as PublicBilling } from "../dist/native.js";
 
 type Handle = {
   registerRequest(id: string): void;
@@ -37,14 +38,16 @@ async function webhook(
     .update(`${now}.`)
     .update(raw)
     .digest("hex");
-  const request = randomUUID();
-  h.registerRequest(request);
-  return JSON.parse(
-    await h.webhook(
-      JSON.stringify({ "stripe-signature": `t=${now},v1=${hash}` }),
-      Buffer.from(tamper ? `${raw} ` : raw),
-      request,
-    ),
+  const billing = Reflect.construct(PublicBilling, [
+    h,
+    "test",
+  ]) as PublicBilling;
+  return billing.webhook(
+    new Request("http://localhost/api/billing/webhook", {
+      method: "POST",
+      headers: { "stripe-signature": `t=${now},v1=${hash}` },
+      body: Buffer.from(tamper ? `${raw} ` : raw),
+    }),
   );
 }
 test("native Stripe HTTP preserves intents, verifies paid state, deduplicates and compensates refunds", async () => {

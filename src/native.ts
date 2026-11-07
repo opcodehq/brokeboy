@@ -7,12 +7,14 @@ import type {
   OpenConfig,
   Rate,
 } from "./generated/models.js";
+import { MAX_WEBHOOK_BYTES } from "./generated/models.js";
 import {
   type NativeTransport,
   nativeGroups,
   nativeTransport,
 } from "./native-bridge.js";
 import { loadNative, type NativeHandle } from "./native-loader.js";
+import { readRequestBytes } from "./request-body.js";
 
 export type * from "./generated/models.js";
 
@@ -212,8 +214,14 @@ export class Billing {
     request: Request,
     signal: AbortSignal = request.signal,
   ): Promise<{ accepted: boolean }> {
-    if (signal.aborted) throw new BillingError("interrupted");
-    const body = Buffer.from(await request.arrayBuffer());
+    let body: Buffer;
+    try {
+      body = Buffer.from(
+        await readRequestBytes(request, MAX_WEBHOOK_BYTES, signal),
+      );
+    } catch (error) {
+      throw nativeError(error);
+    }
     if (signal.aborted) throw new BillingError("interrupted");
     const id = randomUUID(),
       cancel = () => this.handle.cancelRequest(id);

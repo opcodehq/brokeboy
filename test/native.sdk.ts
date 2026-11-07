@@ -288,3 +288,59 @@ test("native public pricing and calendar helpers match frozen wire fixtures", as
       item.result,
     );
 });
+
+test("native webhook input is bounded and interrupted streams release their reader", async () => {
+  const { directory, options } = await fixture();
+  const billing = await Billing.open(options);
+  try {
+    let oversizedCancelled = false;
+    const oversized = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(8 * 1024 * 1024 + 1));
+      },
+      cancel() {
+        oversizedCancelled = true;
+      },
+    });
+    const oversizedOptions = {
+      method: "POST",
+      body: oversized,
+      duplex: "half",
+    };
+    await assert.rejects(
+      billing.webhook(
+        new Request(
+          "https://app.example/api/billing/webhook",
+          oversizedOptions,
+        ),
+      ),
+      (error: any) => error.code === "body_too_large",
+    );
+    assert.equal(oversizedCancelled, true);
+    assert.equal(oversized.locked, false);
+    const controller = new AbortController();
+    let cancelled = false;
+    const stream = new ReadableStream<Uint8Array>({
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const streamOptions = {
+      method: "POST",
+      body: stream,
+      duplex: "half",
+      signal: controller.signal,
+    };
+    const pending = billing.webhook(
+      new Request("https://app.example/api/billing/webhook", streamOptions),
+    );
+    controller.abort();
+    await assert.rejects(pending, (error: any) => error.code === "interrupted");
+    assert.equal(cancelled, true);
+    assert.equal(stream.locked, false);
+    assert.equal((await billing.customers.get("native")).id, "native");
+  } finally {
+    await billing.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});

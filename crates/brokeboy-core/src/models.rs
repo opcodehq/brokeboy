@@ -258,5 +258,9 @@ pub fn declarations() -> String {
         WorkflowStep,
         Workflow
     );
+    result.push_str(&format!(
+        "export const MAX_WEBHOOK_BYTES = {};\n",
+        crate::MAX_WEBHOOK_BYTES
+    ));
     result
 }

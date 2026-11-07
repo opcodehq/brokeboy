@@ -20,6 +20,10 @@ impl Billing {
     ) -> Result<Value> {
         let request = self.0.lifecycle.start(id)?;
         request.check()?;
+        require(
+            body.len() <= brokeboy_core::MAX_WEBHOOK_BYTES,
+            "body_too_large",
+        )?;
         tokio::select! {biased;_=request.cancelled()=>Err(BillingError::new("interrupted")),result=self.webhook_inner(headers,body)=>result}
     }
     async fn webhook_inner(

@@ -58,6 +58,7 @@ if (values.primary) {
   await mkdir(out, { recursive: true });
   const runtime = new Set([
     "native.js",
+    "request-body.js",
     "native-cli.js",
     "native-loader.js",
     "native-bridge.js",

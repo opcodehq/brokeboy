@@ -155,7 +155,10 @@ impl Handler {
         let route = &path[base.len()..];
         if route == "/webhook" {
             require(request.method() == Method::POST, "method_not_allowed")?;
-            require(request.body().len() <= 8 * 1024 * 1024, "body_too_large")?;
+            require(
+                request.body().len() <= brokeboy_core::MAX_WEBHOOK_BYTES,
+                "body_too_large",
+            )?;
             let headers = request
                 .headers()
                 .iter()

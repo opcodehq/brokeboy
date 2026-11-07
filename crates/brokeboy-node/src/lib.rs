@@ -1,4 +1,4 @@
-//! Unpublished native integration proof; not the production TypeScript SDK.
+//! Async native billing bindings. Distribution remains gated on release qualification.
 use brokeboy::lifecycle::Lifecycle;
 use brokeboy::sql::SqlStorage;
 use brokeboy::storage::Storage;
