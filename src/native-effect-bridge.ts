@@ -6,7 +6,12 @@ import {
 } from "./core/effect.js";
 import type { EffectBilling } from "./core/engine.js";
 import { BillingError } from "./core/errors.js";
-import { type NativeTransport, nativeGroups } from "./native-bridge.js";
+import {
+  type NativeTransport,
+  nativeGroups,
+  nativeMethodKey,
+  nativeObjectProperty,
+} from "./native-bridge.js";
 export function nativeFailure(error: unknown) {
   if (
     error &&
@@ -44,8 +49,8 @@ export function nativeEffects(transport: NativeTransport): EffectBilling {
     result[group] = new Proxy(
       {},
       {
-        get: (_target, key) => {
-          if (typeof key !== "string") return undefined;
+        get: (target, key) => {
+          if (!nativeMethodKey(key)) return nativeObjectProperty(target, key);
           if (!cache.has(key))
             cache.set(
               key,

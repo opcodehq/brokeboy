@@ -35,6 +35,9 @@ test("native promise SDK works with authenticated HTTP and redacts private state
   const { directory, options } = await fixture();
   const billing = await Billing.open(options);
   try {
+    assert.equal(await Promise.resolve(billing.catalog), billing.catalog);
+    assert.equal(JSON.stringify(billing.catalog), "{}");
+    assert.equal(String(billing.catalog), "[object Object]");
     const catalog = defineCatalog({
       features: [{ id: "credits", kind: "consumable" }],
       plans: [
@@ -181,6 +184,8 @@ test("native Effect acquisition is scoped, lazy, and translates domain errors", 
         Effect.gen(function* () {
           const billing = yield* make(options);
           effects = billing;
+          assert.equal(JSON.stringify(billing.catalog), "{}");
+          assert.equal(String(billing.catalog), "[object Object]");
           const create = billing.customers.create({
             id: "scoped",
             idempotencyKey: "create",

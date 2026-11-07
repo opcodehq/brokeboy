@@ -11,6 +11,8 @@ import { MAX_WEBHOOK_BYTES } from "./generated/models.js";
 import {
   type NativeTransport,
   nativeGroups,
+  nativeMethodKey,
+  nativeObjectProperty,
   nativeTransport,
 } from "./native-bridge.js";
 import { loadNative, type NativeHandle } from "./native-loader.js";
@@ -147,8 +149,9 @@ export class Billing {
         value: new Proxy(
           {},
           {
-            get: (_target, key) => {
-              if (typeof key !== "string") return undefined;
+            get: (target, key) => {
+              if (!nativeMethodKey(key))
+                return nativeObjectProperty(target, key);
               if (!methods.has(key))
                 methods.set(
                   key,
