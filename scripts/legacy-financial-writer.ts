@@ -7,9 +7,11 @@ const [path, customerId, mode, key] = process.argv.slice(2);
 if (!path || !customerId)
   throw new Error("Fixture database and customer are required");
 const db = new Database(path);
-db.exec("PRAGMA busy_timeout=15000");
 const billing = brokeboy({
-  database: drizzleAdapter({ $client: db }, { dialect: "sqlite" }),
+  database: drizzleAdapter(
+    { $client: db },
+    { dialect: "sqlite", busyTimeout: 30000 },
+  ),
 });
 try {
   if (mode === "replay") {

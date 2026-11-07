@@ -13,6 +13,7 @@ import {
   defineCatalog,
   rateUsage,
 } from "../dist/native.js";
+import { nativeTransport } from "../dist/native-bridge.js";
 import { make } from "../dist/native-effect.js";
 import { toHandler } from "../dist/server.js";
 
@@ -343,6 +344,40 @@ test("native webhook input is bounded and interrupted streams release their read
     await assert.rejects(pending, (error: any) => error.code === "interrupted");
     assert.equal(cancelled, true);
     assert.equal(stream.locked, false);
+    const requestAbort = new AbortController();
+    let requestCancelled = false;
+    const requestStream = new ReadableStream<Uint8Array>({
+      cancel() {
+        requestCancelled = true;
+      },
+    });
+    const requestOptions = {
+      method: "POST",
+      body: requestStream,
+      duplex: "half",
+      signal: requestAbort.signal,
+    };
+    const separateSignal = new AbortController().signal;
+    const combined = billing[nativeTransport].webhook(
+      new Request("https://app.example/api/billing/webhook", requestOptions),
+      separateSignal,
+    );
+    requestAbort.abort();
+    await assert.rejects(
+      combined,
+      (error: any) => error.code === "interrupted",
+    );
+    assert.equal(requestCancelled, true);
+    assert.equal(requestStream.locked, false);
+    const consumed = new Request("https://app.example/api/billing/webhook", {
+      method: "POST",
+      body: "already parsed",
+    });
+    await consumed.text();
+    await assert.rejects(
+      billing.webhook(consumed),
+      (error: any) => error.code === "invalid_body",
+    );
     assert.equal((await billing.customers.get("native")).id, "native");
   } finally {
     await billing.close();

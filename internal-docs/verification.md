@@ -33,7 +33,7 @@ The dedicated Node and Bun test commands intentionally use different SQLite driv
 - Merchant-authorized Stripe sandbox flows: real Checkout completion, delayed payment methods, 3DS, tax, coupons, paid renewals, proration, pending updates, future schedules, partial refunds, disputes, and metered invoice closing.
 - Delivery from a registered public Stripe webhook destination. Signing a fixture with real retrieved Stripe state does not establish delivery.
 - Hosted Workers/Neon and Workers/MySQL connection binding qualification, including request lifetimes, reconnects and cancellation.
-- MySQL 8 verification in the GitHub service matrix; local MariaDB compatibility is not a substitute for that result.
+- MySQL 8 service verification passed in the hosted 0.1/native matrices on 2026-11-07; additional fault scenarios remain part of native release qualification.
 - Application-specific restore and migration rehearsal with financial-period cutover and external-state reconciliation.
 
 `bun run test:stripe-sandbox` accepts only a test-mode `STRIPE_SECRET_KEY`. It creates disposable sandbox fixtures, verifies paid subscription state and local signed ingestion, and attempts cleanup. `STRIPE_TEST_CLOCK_ADVANCE=true` adds a renewal clock advance. It does not test every external gate above. The manual GitHub workflow uses a protected `stripe-sandbox` environment and a `STRIPE_TEST_SECRET_KEY` secret.
@@ -55,3 +55,5 @@ The current package is `0.1.0-alpha.2`. Prerelease source and package artifacts 
 ## Rust native preview
 
 The 0.2 implementation, frozen interoperability fixtures, native SDK/Stripe results, artifact measurements, commands and remaining release gates are recorded in [Rust port qualification](rust-port.md). The repository default entry point stays on 0.1 until those gates pass. Native artifacts are staged locally and by a manual seven-target qualification workflow; nothing is published automatically.
+
+Native qualification now also includes passing Node 22/24/Bun source jobs on Linux/macOS/Windows and native-addon/CLI execution for all seven artifact targets. GNU builds target glibc 2.28; downloaded x64 artifacts and the packed SDK passed on Amazon Linux 2023. Source and artifact run links, exact coverage and remaining gates are recorded in the Rust port document and `native-artifacts.json`.

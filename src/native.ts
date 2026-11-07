@@ -217,6 +217,7 @@ export class Billing {
     request: Request,
     signal: AbortSignal = request.signal,
   ): Promise<{ accepted: boolean }> {
+    signal = AbortSignal.any([signal, request.signal]);
     let body: Buffer;
     try {
       body = Buffer.from(

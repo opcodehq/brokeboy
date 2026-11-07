@@ -6,7 +6,7 @@ This is a source preview, not a published or fully qualified 0.2 release. The re
 
 ## Build and connect
 
-Repository contributors need Rust 1.94 and Bun. Published native artifacts will not require a compiler; the seven platform packages are staged and tested before publication.
+Repository contributors need Rust 1.94 and Bun. Published native artifacts will not require a compiler; the seven platform packages are staged and tested before publication. GNU builds target glibc 2.28 or newer; the downloaded x64 artifact also executes on Amazon Linux 2023.
 
 ```sh
 bun install --frozen-lockfile

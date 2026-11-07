@@ -1,0 +1,141 @@
+{
+  "rustCompiler": "1.94.0",
+  "profile": "release, thin LTO, stripped",
+  "artifacts": [
+    {
+      "platform": "darwin-arm64",
+      "version": "0.2.0-alpha.0",
+      "profile": "release",
+      "measurements": {
+        "brokeboy.node": {
+          "bytes": 13714368,
+          "sha256": "4c337d2803483aef2884e91451181c778f09167984661a1db70693779d23c630"
+        },
+        "brokeboy-native": {
+          "bytes": 13524784,
+          "sha256": "6f06b27081938692c7ad024a0da5dfd4052ef81b90ccc768ffbb33a92d952a1a"
+        }
+      },
+      "sourceCommit": "415528e5e978c6e74df20a1522a47eef276b3af6",
+      "workflowRun": "https://github.com/opcodehq/brokeboy/actions/runs/42424524446",
+      "checks": ["Node 24 prebuilt addon and CLI execution"]
+    },
+    {
+      "platform": "darwin-x64",
+      "version": "0.2.0-alpha.0",
+      "profile": "release",
+      "measurements": {
+        "brokeboy.node": {
+          "bytes": 15324452,
+          "sha256": "ad5b0d85d17b3c801b54a0ded86f5ec56f8320dbd7899df78329629079c3a3a7"
+        },
+        "brokeboy-native": {
+          "bytes": 15136660,
+          "sha256": "ff65dfe4bf1280b88b13b29b68ab5f876681fc1f46155b888f39328f17f3a0d2"
+        }
+      },
+      "sourceCommit": "415528e5e978c6e74df20a1522a47eef276b3af6",
+      "workflowRun": "https://github.com/opcodehq/brokeboy/actions/runs/42424524446",
+      "checks": ["Node 24 prebuilt addon and CLI execution"]
+    },
+    {
+      "platform": "linux-arm64-gnu",
+      "version": "0.2.0-alpha.0",
+      "profile": "release",
+      "measurements": {
+        "brokeboy.node": {
+          "bytes": 14244352,
+          "sha256": "9372068bb3ccef9b472128d1817a54f49f6b347fe805de9ecee600a37b8c8998"
+        },
+        "brokeboy-native": {
+          "bytes": 13916792,
+          "sha256": "f0179ad3278174ff77bf5ddf5e368e561de2b101310ccec941668a47fda033ae"
+        }
+      },
+      "sourceCommit": "fd07741ce7bdc1c15545ed222c706d3b5845aad0",
+      "workflowRun": "https://github.com/opcodehq/brokeboy/actions/runs/42425641416",
+      "checks": [
+        "Node 24 prebuilt addon and CLI execution",
+        "Execution on both glibc 2.28 build container and current GNU host"
+      ],
+      "minimumGlibcSymbolVersion": "2.28"
+    },
+    {
+      "platform": "linux-arm64-musl",
+      "version": "0.2.0-alpha.0",
+      "profile": "release",
+      "measurements": {
+        "brokeboy.node": {
+          "bytes": 14374712,
+          "sha256": "5d9c55153abb4d2925a71f75c636adb756869873c7660df7a12e8156059c693d"
+        },
+        "brokeboy-native": {
+          "bytes": 14046896,
+          "sha256": "360ce92903e1c018fadaa47f62ccf86ef0e7acbfebd51fd026bb2b3963d31ccb"
+        }
+      },
+      "sourceCommit": "415528e5e978c6e74df20a1522a47eef276b3af6",
+      "workflowRun": "https://github.com/opcodehq/brokeboy/actions/runs/42424524446",
+      "checks": ["Node 24 prebuilt addon and CLI execution"]
+    },
+    {
+      "platform": "linux-x64-gnu",
+      "version": "0.2.0-alpha.0",
+      "profile": "release",
+      "measurements": {
+        "brokeboy.node": {
+          "bytes": 16358224,
+          "sha256": "7bdf9e95e28d44d38a2103d00af87eb0504ec0c8cd1b7ce5f231e0ba014f63db"
+        },
+        "brokeboy-native": {
+          "bytes": 15989208,
+          "sha256": "792982aa7447f3013e33365fad2b8d7df8cb38b7bd2797a944c1f3aced556b33"
+        }
+      },
+      "sourceCommit": "fd07741ce7bdc1c15545ed222c706d3b5845aad0",
+      "workflowRun": "https://github.com/opcodehq/brokeboy/actions/runs/42425641416",
+      "checks": [
+        "Node 24 prebuilt addon and CLI execution",
+        "Execution on both glibc 2.28 build container and current GNU host",
+        "Downloaded artifact and installed promise/Effect SDK execute on Amazon Linux 2023, glibc 2.34"
+      ],
+      "minimumGlibcSymbolVersion": "2.28"
+    },
+    {
+      "platform": "linux-x64-musl",
+      "version": "0.2.0-alpha.0",
+      "profile": "release",
+      "measurements": {
+        "brokeboy.node": {
+          "bytes": 16475432,
+          "sha256": "4700b315f92bed6679df2cd3cd3f476e502850d385342b15e6cb1dc9046fd987"
+        },
+        "brokeboy-native": {
+          "bytes": 16123056,
+          "sha256": "395e6af6c223096698206bded6c0e8fa366a40aa2502485a891f02f4523ef93d"
+        }
+      },
+      "sourceCommit": "415528e5e978c6e74df20a1522a47eef276b3af6",
+      "workflowRun": "https://github.com/opcodehq/brokeboy/actions/runs/42424524446",
+      "checks": ["Node 24 prebuilt addon and CLI execution"]
+    },
+    {
+      "platform": "win32-x64-msvc",
+      "version": "0.2.0-alpha.0",
+      "profile": "release",
+      "measurements": {
+        "brokeboy.node": {
+          "bytes": 16092160,
+          "sha256": "02d2afed055c0fac132de9adb65221802a973b8113c2bd23a8123036322e69ba"
+        },
+        "brokeboy-native.exe": {
+          "bytes": 15478272,
+          "sha256": "6d3a00c69055392023f44923f76c82e2b755c6c40193fb5cc0c1fd531937aa74"
+        }
+      },
+      "sourceCommit": "415528e5e978c6e74df20a1522a47eef276b3af6",
+      "workflowRun": "https://github.com/opcodehq/brokeboy/actions/runs/42424524446",
+      "checks": ["Node 24 prebuilt addon and CLI execution"]
+    }
+  ]
+}

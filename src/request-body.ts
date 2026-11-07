@@ -14,6 +14,7 @@ export async function readRequestBytes(
     throw new Error("body_too_large");
   }
   if (!request.body) return new Uint8Array();
+  if (request.bodyUsed || request.body.locked) throw new Error("invalid_body");
   const reader = request.body.getReader();
   let rejectAbort: (error: Error) => void = () => {};
   const interrupted = new Promise<never>((_, reject) => {
