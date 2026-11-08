@@ -123,7 +123,7 @@ The GNU jobs now build and execute on matching manylinux/glibc 2.28 containers a
 
 [Embedding and cutover](embedding.md) records the working-tree reference audit, each requested gap, new Rust APIs, source-balance transfer protocol, processor routing and the exact application responsibilities retained at the integration boundary. No Mac application code was edited. Frozen compatibility fixtures, schema DDL, dependency versions and default package exports remain unchanged. No tag, crate or npm package was published.
 
-Local qualification ran with PostgreSQL **16.14** on a new isolated data directory, the existing MariaDB **10.5.29** fixture directory, SQLite, Node **24.22.1**, Bun **1.3.10**, and Rust **1.94**. The PostgreSQL 15 data directory was left intact. MariaDB is not a MySQL 8 qualification; hosted results for this revision must be checked separately. Disk availability was checked before builds and remained over 30 GB.
+Local qualification ran with PostgreSQL **16.14** on a new isolated data directory, the existing MariaDB **10.5.29** fixture directory, SQLite, Node **24.22.1**, Bun **1.3.10**, and Rust **1.94**. The PostgreSQL 15 data directory was left intact. MariaDB is not a MySQL 8 qualification; the hosted contracts and package checks below passed against MySQL 8. Disk availability was checked before builds and remained over 30 GB.
 
 - Formatting, strict workspace Clippy, workspace tests, documentation compilation, no-default-feature checks for each SQL adapter, `stripe,http`, and independent `polar` all pass. Thirty-one Rust harness tests pass, including the subprocess helper used by the real PostgreSQL fault test.
 - Generated DTO/schema checks, Biome, TypeScript checks, the existing 129 Bun tests, three Node SQLite tests, the Neon WebSocket test and both D1 tests pass. The complete `check` command initially found an unformatted documentation table; it passes after formatting.
@@ -131,6 +131,12 @@ Local qualification ran with PostgreSQL **16.14** on a new isolated data directo
 - New engine scenarios cover cumulative partial/failed refunds, duplicate/reordered disputes, spent/held-credit shortfalls, adopted/unmatched customers, immutable cost-period receipts and status/cap boundaries, concurrent streams, estimate settlement on abandonment, late actuals, stale provider-worker fencing, and canceling an unstarted top-up after an accepted replenishment. Source debit response loss in the Stripe HTTP fixture retains one external key and one source transaction.
 - A real PostgreSQL 16 test terminates the connection before a financial commit, then kills a separate process while it holds an unfinished debit. Both leave the original balance intact; retry records one debit and replay returns the same receipt. Another test uses an independently owned Brokeboy pool alongside an application table and verifies that table and the application's pool survive billing shutdown.
 - The Rust streaming example runs and reports `4.945` available after a `0.025` actual cost and one `0.03` abandoned estimate from a five-unit grant.
+
+### Hosted qualification of the embedding changes
+
+Source revision `909d1e0d417690a36173ca34d158540615d3dc27` passed [Check run 42474301741](https://github.com/opcodehq/brokeboy/actions/runs/42474301741) on Node 22/24 and [Rust qualification run 42474301773](https://github.com/opcodehq/brokeboy/actions/runs/42474301773). The Rust contracts job passed against PostgreSQL 16 and MySQL 8, including strict Clippy, documentation and feature checks. Every Linux, macOS and Windows Node 22/24 native job passed, including its Bun contracts. These are source-build results; they do not qualify new seven-platform release archives or establish the remaining merchant cases.
+
+After archiving the public delivery and ledger evidence, cleanup verified that the temporary Stripe webhook endpoint no longer exists and every public-checkout fixture customer is deleted. The receiver, tunnel and browser session were stopped. No reusable public webhook service is left running.
 
 ### Real Stripe evidence
 
