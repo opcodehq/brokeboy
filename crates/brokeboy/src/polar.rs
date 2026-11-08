@@ -269,7 +269,7 @@ impl Polar {
             Some("trialing") => "trialing",
             Some("past_due") => "past_due",
             Some("incomplete") => "pending",
-            Some("canceled" | "unpaid") => "ended",
+            Some("canceled" | "unpaid" | "incomplete_expired") => "ended",
             _ => return Err(BillingError::new("unsupported_provider_status")),
         };
         Ok(ProviderEvent {

@@ -30,6 +30,8 @@ brokeboy = { git = "https://github.com/opcodehq/brokeboy", tag = "<qualified-pre
 
 Until then use a reviewed commit with `rev`, or a path dependency for local integration. Do not invent a tag. Add `polar` when retaining that processor; omit `http` if the application owns its HTTP layer. SQLx 0.9 and Reqwest 0.13 remain unchanged. A host on SQLx 0.8/Reqwest 0.12 keeps those dependencies and opens a separate Brokeboy pool using `Billing::open(DatabaseConnection, BillingOptions)`; its 0.8 pool cannot be passed to a 0.9 API. Cargo can retain both versions.
 
+The engine constrains `icu_collator` to `~2.3` so applications retaining ICU 2.3 can resolve their dependency graph. Frozen compatibility receipts and allocation provenance must pass after any collation dependency change; do not upgrade this constraint independently of those checks. This does not change the SQLx or Reqwest versions.
+
 Apply the explicit billing DDL in a migration. Startup does not apply it. A PostgreSQL connection URL can set `options=-csearch_path=billing_schema`; use URL query encoding, as demonstrated in `tests/embedding.rs`. Brokeboy may also share the public schema: table names are prefixed. The test creates an application table in the same database/schema, opens and closes an independent Brokeboy pool, replays a debit, and verifies the application row and pool remain intact. It does not compile the host application or claim shared cross-version transactions.
 
 Use a host outbox when one application transaction must record a resource transition and request a billing operation. Commit the host transaction, call Brokeboy with its stable source key, and acknowledge only after the receipt is durable. Do not hold an application transaction while waiting for an independent billing pool to acquire overlapping locks.
@@ -37,6 +39,8 @@ Use a host outbox when one application transaction must record a resource transi
 ## Prepaid wallet and source transfer
 
 `prepaid.checkout` accepts `customerId`, `feature`, positive `amountCents` (maximum 99,999,999), `successUrl`, optional `cancelUrl`, and `idempotencyKey`. It sells USD credit: 125 cents grants `"1.25"` wallet units. A completed but unpaid session does not grant credit. The adapter retrieves captured payment evidence before applying delayed payment success. The wallet is Brokeboy's ledger; subsequent consumption never writes Stripe customer balance transactions.
+
+Stripe automatically applies its [customer invoice credit balance](https://docs.stripe.com/billing/customer/balance) to eligible invoices; Brokeboy wallet credit is a separate ledger and does not pay subscription or overage invoices automatically. Before moving an existing balance, the host must explicitly choose whether the wallet funds hosted usage only or also funds invoices. Invoice funding requires a separate, recoverable wallet debit and provider credit-transfer workflow; this integration does not implement that bridge. Keep the source balance in place until that policy and any required bridge are ready.
 
 Opening import is a transfer, not a copy:
 
@@ -83,6 +87,8 @@ For streams, reserve a decimal estimate with a request-derived idempotency key a
 Construct `PolarOptions` with its access token, signing secret, environment and a product-ID-to-plan-ID map. Sandbox uses `https://sandbox-api.polar.sh/v1`; live configuration uses `https://api.polar.sh/v1`. No live requests were made for qualification. Standard Webhooks key decoding is the default; select `legacy_literal_secret` explicitly for old literal-secret endpoints. Signatures bind raw bytes and enforce a five-minute timestamp window.
 
 `provider::Providers` accepts a default processor and registered adapters. Trusted server calls can select `provider`; queued work retains that choice. Subscription notifications retrieve canonical provider state, resolve configured products, and retain pinned catalog versions when no new version is specified. The browser does not choose arbitrary customers or administrative processors.
+
+Canonical subscription reconciliation maps `incomplete_expired`, `canceled` and `unpaid` to `ended` with zero paid-through allowance. All seven documented provider statuses are covered by HTTP fixture tests. Unknown or missing statuses remain explicit `unsupported_provider_status` errors for review, rather than silently canceling a subscription. See the [provider subscription contract](https://polar.sh/docs/api-reference/subscriptions/get).
 
 Polar meter configuration maps a feature to an event name aggregating currency minor units. The adapter exports Brokeboy's rated delta with a stable `external_id` and owner identity. It refuses late periods for reconciliation. Fixture tests cover the request shapes and stable identity; a real Polar account, ingestion deduplication, meter-summary reconciliation and merchant lifecycle qualification are still required. Unsupported commerce operations return an explicit error. Keep the existing Polar export/reconciliation lane until those checks pass.
 

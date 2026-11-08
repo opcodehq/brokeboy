@@ -87,8 +87,10 @@ async fn checkout_portal_and_canonical_subscription_use_native_provider_contract
     let address = listener.local_addr().unwrap();
     let seen = Arc::new(Mutex::new(Vec::new()));
     let requests = seen.clone();
+    let subscription_status = Arc::new(Mutex::new(String::from("active")));
+    let response_status = subscription_status.clone();
     let server = std::thread::spawn(move || {
-        for _ in 0..6 {
+        for _ in 0..14 {
             let (mut stream, _) = listener.accept().unwrap();
             stream
                 .set_read_timeout(Some(Duration::from_secs(5)))
@@ -131,7 +133,7 @@ async fn checkout_portal_and_canonical_subscription_use_native_provider_contract
                 assert_eq!(body["events"][0]["metadata"]["units"], 15);
                 json!({"inserted":1})
             } else if request.starts_with("GET /v1/subscriptions/subscription") {
-                json!({"id":"subscription","product_id":"product","status":"active","current_period_start":"2027-01-01T00:00:00Z","current_period_end":"2027-02-01T00:00:00Z","customer":{"external_id":"owner"},"cancel_at_period_end":false})
+                json!({"id":"subscription","product_id":"product","status":response_status.lock().unwrap().clone(),"current_period_start":"2027-01-01T00:00:00Z","current_period_end":"2027-02-01T00:00:00Z","customer":{"external_id":"owner"},"cancel_at_period_end":false})
             } else {
                 panic!("Unexpected fixture request")
             };
@@ -167,6 +169,34 @@ async fn checkout_portal_and_canonical_subscription_use_native_provider_contract
     assert_eq!(canonical.data["subscription"]["provider"], "polar");
     assert_eq!(canonical.data["planId"], "monthly");
     assert_eq!(canonical.data["providerMeterIds"]["wallet"], "credit_usage");
+    for (provider_status, billing_status) in [
+        ("incomplete", "pending"),
+        ("incomplete_expired", "ended"),
+        ("trialing", "trialing"),
+        ("active", "active"),
+        ("past_due", "past_due"),
+        ("canceled", "ended"),
+        ("unpaid", "ended"),
+    ] {
+        *subscription_status.lock().unwrap() = provider_status.into();
+        let canonical = polar.reconcile(event.clone()).await.unwrap();
+        let subscription = &canonical.data["subscription"];
+        assert_eq!(subscription["status"], billing_status, "{provider_status}");
+        assert_eq!(
+            subscription["paidThrough"],
+            if matches!(billing_status, "active" | "trialing") {
+                subscription["periodEnd"].clone()
+            } else {
+                json!(0)
+            },
+            "{provider_status}"
+        );
+    }
+    *subscription_status.lock().unwrap() = "future-provider-status".into();
+    assert_eq!(
+        polar.reconcile(event.clone()).await.unwrap_err().code,
+        "unsupported_provider_status"
+    );
     let mut foreign = event;
     foreign.customer_id = "someone-else".into();
     assert_eq!(
@@ -179,5 +209,5 @@ async fn checkout_portal_and_canonical_subscription_use_native_provider_contract
     }
     polar.close().await.unwrap();
     server.join().unwrap();
-    assert_eq!(seen.lock().unwrap().len(), 6);
+    assert_eq!(seen.lock().unwrap().len(), 14);
 }
