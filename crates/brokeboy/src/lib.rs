@@ -9,6 +9,8 @@ pub mod http;
 pub mod ledger;
 pub mod lifecycle;
 pub mod operations;
+#[cfg(feature = "polar")]
+pub mod polar;
 pub mod provider;
 pub mod resources;
 #[cfg(any(feature = "sqlite", feature = "postgres", feature = "mysql"))]

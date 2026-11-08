@@ -101,7 +101,7 @@ async fn run() -> Result<()> {
         None | Some("--help" | "-h")
     ) {
         println!(
-            "brokeboy-native [--config brokeboy.json] COMMAND\n\ninit                            Write connection/catalog templates\nschema DIALECT                  Print explicit SQL migrations\ndoctor                          Check database/schema access\ncatalog diff FILE               Compare a catalog\ncatalog apply FILE              Publish with FILE.expectedRevision\ncatalog export [--out FILE]     Export configuration and its base revision\ncustomer inspect ID             Inspect an application customer\nreconcile ID                    Inspect ledger consistency\noperations retry FILE           Retry a durable operation\noperations resolve FILE         Record an audited resolution\nmigrate export ID [--out FILE]  Export customer history\nmigrate import FILE             Validate/import a snapshot\ncall METHOD FILE                Invoke the native SDK (FILE may be -)\nhash < input.json              Compute canonical_json_v1 hash\n\nStartup never applies migrations or creates payment resources."
+            "brokeboy-native [--config brokeboy.json] COMMAND\n\ninit                            Write connection/catalog templates\nschema DIALECT                  Print explicit SQL migrations\ndoctor                          Check database/schema access\ncatalog diff FILE               Compare a catalog\ncatalog apply FILE              Publish with FILE.expectedRevision\ncatalog export [--out FILE]     Export configuration and its base revision\ncustomer inspect ID             Inspect an application customer\nreconcile ID                    Inspect ledger consistency\noperations retry FILE           Retry a durable operation\noperations resolve FILE         Record an audited resolution\nmigrate backfill FILE [--apply]  Verify/link Stripe identities (dry run by default)\nmigrate export ID [--out FILE]  Export customer history\nmigrate import FILE             Validate/import a snapshot\ncall METHOD FILE                Invoke the native SDK (FILE may be -)\nhash < input.json              Compute canonical_json_v1 hash\n\nStartup never applies migrations or creates payment resources."
         );
         return Ok(());
     }
@@ -111,6 +111,12 @@ async fn run() -> Result<()> {
     }
     let config_path = flag(&mut args, "--config")?.unwrap_or_else(|| "brokeboy.json".into());
     let out = flag(&mut args, "--out")?;
+    let apply = if let Some(i) = args.iter().position(|v| v == "--apply") {
+        args.remove(i);
+        true
+    } else {
+        false
+    };
     if args.first().is_some_and(|a| a == "hash") {
         println!("{}", hash_v1(&read_json("-")?)?);
         return Ok(());
@@ -168,6 +174,30 @@ async fn run() -> Result<()> {
             ("customer", "inspect") => billing.call("customers.get", json!({"customerId":arg.ok_or_else(|| error("customer_required"))?})).await,
             ("reconcile", customer) => billing.call("credits.reconcile", json!({"customerId":customer})).await,
             ("operations", "retry" | "resolve") => billing.call(&format!("operations.{sub}"), read_json(arg.ok_or_else(|| error("input_file_required"))?)?).await,
+            ("migrate", "backfill") => {
+                let entries=read_json(arg.ok_or_else(||error("input_file_required"))?)?;
+                let mut results=Vec::new();
+                for entry in entries.as_array().ok_or_else(||error("invalid_backfill"))? {
+                    let mut customer=entry.clone();
+                    customer["dryRun"]=json!(!apply);
+                    let linked=billing.call("migration.adoptStripeCustomer",customer.clone()).await?;
+                    let mut subscriptions=Vec::new();
+                    if let Some(items)=entry["subscriptions"].as_array() {
+                        for sub in items {
+                            let mut input=sub.clone();
+                            input["customerId"]=entry["customerId"].clone();
+                            input["stripeCustomerId"]=entry["stripeCustomerId"].clone();
+                            input["dryRun"]=json!(!apply);
+                            // Dry run validates provider ownership and plan without changing metadata.
+                            let result=if apply { billing.call("migration.linkSubscription",input).await? }
+                                else {billing.call("migration.inspectStripeSubscription",input).await?};
+                            subscriptions.push(result);
+                        }
+                    }
+                    results.push(json!({"customer":linked,"subscriptions":subscriptions}));
+                }
+                Ok(json!({"dryRun":!apply,"results":results}))
+            }
             ("migrate", "export") => billing.call("migration.export", json!({"customerId":arg.ok_or_else(|| error("customer_required"))?})).await,
             ("migrate", "import") => billing.call("migration.import", read_json(arg.ok_or_else(|| error("input_file_required"))?)?).await,
             ("call", method) => billing.call(method, read_json(arg.unwrap_or("-"))?).await,

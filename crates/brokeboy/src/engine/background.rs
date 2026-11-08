@@ -7,6 +7,53 @@ use brokeboy_core::compatibility::hash_v1;
 use std::collections::BTreeMap;
 
 impl Billing {
+    pub(crate) async fn replay_unmatched(&self, input: Value) -> Result<Value> {
+        let id = s(&input, "eventId")?.to_owned();
+        let saved = self
+            .atomic(&self.catalog_scope(), move |tx| {
+                Box::pin(async move {
+                    get(tx, Table::Inbox, &id)
+                        .await?
+                        .ok_or_else(|| BillingError::new("event_not_found"))
+                })
+            })
+            .await?;
+        let mut event: ProviderEvent = serde_json::from_value(saved.clone())
+            .map_err(|_| BillingError::new("invalid_provider_event"))?;
+        event.customer_id = self
+            .resolve_provider_customer(&event)
+            .await?
+            .ok_or_else(|| BillingError::new("customer_mapping_required"))?;
+        let scope = self.scope(&event.customer_id)?;
+        let this = self.clone();
+        let event_id = event.id.clone();
+        self.atomic(&scope, move |tx| {
+            Box::pin(async move {
+                this.customer(tx, &event.customer_id).await?;
+                if get(tx, Table::Inbox, &event.id).await?.is_none() {
+                    let raw = serde_json::to_value(&event)
+                        .map_err(|_| BillingError::new("invalid_provider_event"))?;
+                    put(tx, Table::Inbox, &event.id, raw.clone(), "pending").await?;
+                    this.enqueue(
+                        tx,
+                        &format!("webhook:{}", event.id),
+                        "webhook",
+                        json!({"event":raw}),
+                    )
+                    .await?;
+                }
+                Ok(Value::Null)
+            })
+        })
+        .await?;
+        self.atomic(&self.catalog_scope(), move |tx| {
+            Box::pin(async move {
+                put(tx, Table::Inbox, &event_id, saved, "forwarded").await?;
+                Ok(json!({"accepted":true}))
+            })
+        })
+        .await
+    }
     pub async fn webhook(&self, headers: BTreeMap<String, String>, body: Vec<u8>) -> Result<Value> {
         let id = uuid::Uuid::new_v4().to_string();
         self.register_request(&id)?;
@@ -37,7 +84,24 @@ impl Billing {
             .provider
             .as_ref()
             .ok_or_else(|| BillingError::new("provider_missing"))?;
-        if let Some(event) = provider.verify(headers, body).await? {
+        if let Some(mut event) = provider.verify(headers, body).await? {
+            let matched = self.resolve_provider_customer(&event).await?;
+            if let Some(customer) = matched {
+                event.customer_id = customer;
+            } else {
+                let raw = serde_json::to_value(&event)
+                    .map_err(|_| BillingError::new("invalid_provider_event"))?;
+                self.atomic(&self.catalog_scope(), move |tx| {
+                    Box::pin(async move {
+                        if get(tx, Table::Inbox, &event.id).await?.is_none() {
+                            put(tx, Table::Inbox, &event.id, raw, "reconciliation").await?;
+                        }
+                        Ok(Value::Null)
+                    })
+                })
+                .await?;
+                return Ok(json!({"accepted":true,"requiresReview":true}));
+            }
             let scope = self.scope(&event.customer_id)?;
             let this = self.clone();
             self.atomic(&scope, move |tx| {
@@ -62,6 +126,88 @@ impl Billing {
             .await?;
         }
         Ok(json!({"accepted":true}))
+    }
+    async fn resolve_provider_customer(&self, event: &ProviderEvent) -> Result<Option<String>> {
+        let mut found = None;
+        if let Some(provider_id) = opt(&event.data, "providerCustomerId") {
+            if let Some(customer) = self
+                .0
+                .resources
+                .customer_link("stripe", provider_id, None)
+                .await?
+            {
+                require(
+                    event.customer_id.is_empty() || event.customer_id == customer,
+                    "customer_mapping_conflict",
+                )?;
+                return Ok(Some(customer));
+            }
+            let mut after = None;
+            loop {
+                let scopes = self
+                    .0
+                    .storage
+                    .scopes(
+                        after.as_deref(),
+                        1000,
+                        &format!("{}:c:", self.0.options.environment.name()),
+                    )
+                    .await?;
+                for scope in &scopes {
+                    let customer =
+                        scope[(self.0.options.environment.name().len() + 3)..].to_owned();
+                    let id = customer.clone();
+                    let record = self
+                        .atomic(scope, move |tx| {
+                            Box::pin(async move {
+                                Ok(get(tx, Table::Customers, &id).await?.unwrap_or(Value::Null))
+                            })
+                        })
+                        .await?;
+                    let digest = hash_v1(
+                        &json!({"environment":self.0.options.environment.name(),"customer":customer}),
+                    )?;
+                    let mapping = self
+                        .0
+                        .resources
+                        .inspect(&format!("customer:{digest}"))
+                        .await?;
+                    if opt(&record, "stripeCustomerId") == Some(provider_id)
+                        || opt(&mapping, "id") == Some(provider_id)
+                    {
+                        require(
+                            found.as_ref().is_none_or(|old| old == &customer),
+                            "customer_mapping_conflict",
+                        )?;
+                        found = Some(customer);
+                    }
+                }
+                if scopes.len() < 1000 {
+                    break;
+                }
+                after = scopes.last().cloned();
+            }
+        }
+        if found.is_none() && !event.customer_id.is_empty() {
+            let id = event.customer_id.clone();
+            let customer = self
+                .atomic(&self.scope(&id)?, move |tx| {
+                    Box::pin(async move {
+                        Ok(get(tx, Table::Customers, &id).await?.unwrap_or(Value::Null))
+                    })
+                })
+                .await?;
+            if !customer.is_null() {
+                found = Some(event.customer_id.clone());
+            }
+        }
+        if let Some(found) = &found {
+            require(
+                event.customer_id.is_empty() || event.customer_id == *found,
+                "customer_mapping_conflict",
+            )?;
+        }
+        Ok(found)
     }
     pub(crate) fn provider_identity(&self, scope: &str, operation: &str) -> Result<String> {
         hash_v1(
@@ -148,17 +294,17 @@ impl Billing {
             let kind=s(&work,"kind")?;
             let result=if kind=="event"{if let Some(events)=&self.0.options.events{events.deliver(work["payload"].clone()).await?;}json!({"delivered":true})}
             else if kind=="workflow_timeout"{let this=self.clone();let payload=work["payload"].clone();let customer=customer.clone();self.atomic(scope,move|tx|Box::pin(async move{this.0.ledger.materialize(tx).await?;this.workflow_timeout(tx,&customer,s(&payload,"workflowId")?,opt(&payload,"token")).await?;Ok(Value::Null)})).await?;json!({"checked":true})}
-            else if kind=="webhook"{let provider=self.0.options.provider.as_ref().ok_or_else(||BillingError::new("provider_missing"))?;let event:ProviderEvent=serde_json::from_value(work["payload"]["event"].clone()).map_err(|_|BillingError::new("invalid_provider_event"))?;let event=provider.reconcile(event).await?;self.apply_provider_event(scope,event).await?;json!({"applied":true})}
+            else if kind=="webhook"{let provider=self.0.options.provider.as_ref().ok_or_else(||BillingError::new("provider_missing"))?;let event:ProviderEvent=serde_json::from_value(work["payload"]["event"].clone()).map_err(|_|BillingError::new("invalid_provider_event"))?;let event=provider.reconcile(event).await?;self.apply_provider_event(scope,event,id,&token).await?;json!({"applied":true})}
             else{
                 let provider=self.0.options.provider.as_ref().ok_or_else(||BillingError::new("provider_missing"))?;require(self.now()-n(&work,"createdAt")?<=23*60*60000,"reconciliation_required")?;
-                let mut input=work["payload"].clone();if kind=="auto_topup"{input["plan"]=self.plan(s(&input,"planId")?,None).await?;}
-                let mut skip=false;if kind=="meter"{let counter=format!("meter-export:{}",s(&input,"meterKey")?);let checkpoint=self.atomic(scope,move|tx|Box::pin(async move{Ok(get(tx,Table::Counters,&counter).await?.unwrap_or(json!({"minor":"0","generation":0})))})).await?;input["previousMinor"]=checkpoint["minor"].clone();skip=n(&input,"generation")?<=n(&checkpoint,"generation")?;}
+                let mut input=work["payload"].clone();if kind=="auto_topup"{self.refresh_topup_customer(scope,&customer,id,&token,&input).await?;input["plan"]=self.plan(s(&input,"planId")?,None).await?;}
+                let mut skip=kind=="auto_topup" && !self.topup_ready(scope,&customer,id,&token).await?;if kind=="meter"{let counter=format!("meter-export:{}",s(&input,"meterKey")?);let checkpoint=self.atomic(scope,move|tx|Box::pin(async move{Ok(get(tx,Table::Counters,&counter).await?.unwrap_or(json!({"minor":"0","generation":0})))})).await?;input["previousMinor"]=checkpoint["minor"].clone();skip=n(&input,"generation")?<=n(&checkpoint,"generation")?;}
                 if skip{json!({"skipped":true})}else{
                     let this=self.clone();let customer_id=customer.clone();let customer=self.atomic(scope,move|tx|Box::pin(async move{this.customer(tx,&customer_id).await})).await?;
                     provider.execute(PaymentCommand{id:self.provider_identity(scope,s(&work,"id")?)?,kind:kind.into(),customer,input,resources:self.0.resources.clone()}).await?
                 }
             };
-            if let Some(event)=result.get("providerEvent"){let event:ProviderEvent=serde_json::from_value(event.clone()).map_err(|_|BillingError::new("invalid_provider_event"))?;self.apply_provider_event(scope,event).await?;}
+            if let Some(event)=result.get("providerEvent"){let event:ProviderEvent=serde_json::from_value(event.clone()).map_err(|_|BillingError::new("invalid_provider_event"))?;self.apply_provider_event(scope,event,id,&token).await?;}
             let this=self.clone();let finish_id=id.to_owned();let owner=token.clone();let finished=work.clone();let output=result.clone();let customer=customer.clone();
             self.atomic(scope,move|tx|Box::pin(async move{
                 let mut current=get(tx,Table::Work,&finish_id).await?.ok_or_else(||BillingError::new("operation_not_found"))?;require(opt(&current,"leaseOwner")==Some(owner.as_str()),"lease_lost")?;
@@ -202,6 +348,9 @@ impl Billing {
                         };
                         current["status"] = json!(state);
                         current["error"] = json!(e.code);
+                        if let Some(details) = e.details {
+                            current["errorDetails"] = details;
+                        }
                         current["availableAt"] = json!(
                             this.now()
                                 + 1000_i64

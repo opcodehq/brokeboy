@@ -252,7 +252,26 @@ impl Ledger {
         }
         for r in list(tx, Table::Reservations, Some("held")).await? {
             if n(&r, "expiresAt")? <= now {
-                self.finish_reservation(tx, &r, "expired").await?;
+                if opt(&r, "onExpiry") == Some("settle_estimate") {
+                    let mut check = r.clone();
+                    check["expiresAt"] = json!(now + 1);
+                    if self.reservation_funded(tx, &check).await? {
+                        self.settle_allocations(
+                            tx,
+                            &r,
+                            s(&r, "amount")?,
+                            &format!("abandoned:{}", s(&r, "id")?),
+                            json!({"estimated":true,"reason":"abandoned"}),
+                        )
+                        .await?;
+                    } else {
+                        self.finish_reservation(tx, &r, "reconciliation").await?;
+                        let id = format!("abandoned:{}", s(&r, "id")?);
+                        put(tx,Table::Work,&id,json!({"id":id,"kind":"reservation_adjustment","payload":{"reservationId":r["id"],"amount":r["amount"],"reason":"abandoned_unfunded"},"status":"reconciliation","attempts":0,"availableAt":now,"createdAt":now}),"reconciliation").await?;
+                    }
+                } else {
+                    self.finish_reservation(tx, &r, "expired").await?;
+                }
             }
         }
         for grant in list(tx, Table::Grants, Some("active")).await? {
@@ -547,6 +566,17 @@ impl Ledger {
             self.reservation_funded(tx, r).await?,
             "reservation_not_held",
         )?;
+        self.settle_allocations(tx, r, actual, operation, properties)
+            .await
+    }
+    async fn settle_allocations(
+        &self,
+        tx: &mut dyn Transaction,
+        r: &Value,
+        actual: &str,
+        operation: &str,
+        properties: Value,
+    ) -> Result<Value> {
         let mut left = nonnegative(actual)?;
         require(left <= amount(r, "amount")?, "reservation_exceeded")?;
         let mut used = Vec::new();

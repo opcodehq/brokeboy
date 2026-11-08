@@ -30,6 +30,33 @@ impl Billing {
     ) -> Result<Value> {
         let mut p = input.clone();
         let kind = match method {
+            "prepaid.checkout" => {
+                identifier(s(&p, "feature")?)?;
+                require(
+                    (1..=99_999_999).contains(&n(&p, "amountCents")?),
+                    "invalid_amount",
+                )?;
+                return_url(s(&p, "successUrl")?)?;
+                if let Some(cancel) = opt(&p, "cancelUrl") {
+                    return_url(cancel)?;
+                }
+                "prepaid_checkout"
+            }
+            "migration.importStripeBalance" => {
+                p["provider"] = json!("stripe");
+                identifier(s(&p, "feature")?)?;
+                if p["dryRun"] != false {
+                    p["dryRun"] = json!(true);
+                }
+                if p["dryRun"] == false {
+                    require(
+                        p["externalSpendingDisabled"] == true,
+                        "external_spending_must_be_disabled",
+                    )?;
+                    require(n(&p, "expectedCreditCents")? >= 0, "invalid_amount")?;
+                }
+                "prepaid_balance_import"
+            }
             "subscriptions.checkout" => {
                 let plan = self.plan(s(&p, "planId")?, opt(&p, "version")).await?;
                 p["plan"] = plan;
@@ -76,6 +103,7 @@ impl Billing {
             }
             _ => return Err(BillingError::new("unknown_method")),
         };
+        let hashed_parameters = p.clone();
         if matches!(
             kind,
             "preview"
@@ -96,14 +124,34 @@ impl Billing {
                     })
                 })
                 .await?;
-            if !existing.is_null() && opt(&existing, "stripeSubscriptionId").is_none() {
+            if p.get("provider").is_none() {
+                if let Some(provider) = opt(&existing, "provider") {
+                    p["provider"] = json!(provider);
+                } else if opt(&existing, "stripeSubscriptionId").is_some() {
+                    p["provider"] = json!("stripe");
+                }
+            }
+            if !existing.is_null()
+                && opt(&existing, "stripeSubscriptionId").is_none()
+                && opt(&existing, "providerSubscriptionId").is_none()
+            {
                 return self
-                    .write(&format!("local.{kind}"), &p, p.clone(), request)
+                    .write(
+                        &format!("local.{kind}"),
+                        &hashed_parameters,
+                        p.clone(),
+                        request,
+                    )
                     .await;
             }
         }
         let saved = self
-            .write(&format!("payment.{kind}"), &p, p.clone(), request)
+            .write(
+                &format!("payment.{kind}"),
+                &hashed_parameters,
+                p.clone(),
+                request,
+            )
             .await?;
         self.run_work(
             &self.scope(s(&input, "customerId")?)?,
@@ -129,6 +177,17 @@ impl Billing {
         let id = format!("payment:{key}");
         let mut payload = p.clone();
         let customer = s(p, "customerId")?;
+        if kind == "prepaid_checkout" {
+            let purchase = self.provider_identity(&self.scope(customer)?, &id)?;
+            put(
+                tx,
+                Table::Counters,
+                &format!("prepaid-intent:{purchase}"),
+                p.clone(),
+                "pending",
+            )
+            .await?;
+        }
         if kind == "checkout" && opt(&p["plan"], "kind") != Some("one_time") {
             let plan = &p["plan"];
             let mut identity = json!({"group":if plan["addOn"]==true{s(plan,"id")?}else{opt(plan,"group").unwrap_or("base")}});

@@ -32,9 +32,11 @@ group!(Subscriptions,subscriptions,{attach=>"subscriptions.attach":Subscription,
 group!(Licenses,licenses,{assign=>"licenses.assign":Value,release=>"licenses.release":Value,list=>"licenses.list":Vec<Value>});
 group!(BillingControls,billing_controls,{get=>"billingControls.get":Controls,update=>"billingControls.update":Controls});
 group!(Commerce,commerce,{invoices=>"commerce.invoices":Work,invoice=>"commerce.invoice":Work,refund=>"commerce.refund":Work,credit_note=>"commerce.creditNote":Work});
-group!(OperationsApi,operations,{get=>"operations.get":Work,list=>"operations.list":Vec<Work>,page=>"operations.page":Value,retry=>"operations.retry":Work,resolve=>"operations.resolve":Value,reconcile=>"operations.reconcile":Value});
+group!(OperationsApi,operations,{get=>"operations.get":Work,list=>"operations.list":Vec<Work>,page=>"operations.page":Value,retry=>"operations.retry":Work,resolve=>"operations.resolve":Value,reconcile=>"operations.reconcile":Value,unmatched=>"operations.unmatched":Vec<Value>,replay_unmatched=>"operations.replayUnmatched":Value});
 group!(Events,events,{list=>"events.list":Vec<Value>,page=>"events.page":Value});
 group!(ResourcesApi,resources,{inspect=>"resources.inspect":Option<Value>,reconcile=>"resources.reconcile":Value});
-group!(Migration,migration,{export=>"migration.export":Value,import=>"migration.import":Value,link_subscription=>"migration.linkSubscription":Work});
+group!(Migration,migration,{export=>"migration.export":Value,import=>"migration.import":Value,link_subscription=>"migration.linkSubscription":Work,import_stripe_balance=>"migration.importStripeBalance":Work,adopt_stripe_customer=>"migration.adoptStripeCustomer":Value,inspect_stripe_subscription=>"migration.inspectStripeSubscription":Value});
 group!(Workflows,workflows,{create=>"workflows.create":Workflow,get=>"workflows.get":Workflow,page=>"workflows.page":Value,claim=>"workflows.claim":Value,heartbeat=>"workflows.heartbeat":Workflow,increase=>"workflows.increase":Workflow,complete=>"workflows.complete":Workflow,fail=>"workflows.fail":Workflow,resolve=>"workflows.resolve":Workflow,cancel=>"workflows.cancel":Workflow});
 group!(Maintenance,maintenance,{run=>"maintenance.run":Value});
+group!(Prepaid,prepaid,{checkout=>"prepaid.checkout":Work});
+group!(Periods,periods,{create=>"periods.create":Value,get=>"periods.get":Value,check=>"periods.check":Value,set_status=>"periods.setStatus":Value,reserve=>"periods.reserve":Value,settle=>"periods.settle":Value,release=>"periods.release":Value});

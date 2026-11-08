@@ -3,6 +3,7 @@ pub mod compatibility;
 pub mod decimal;
 pub mod error;
 pub mod models;
+pub mod periods;
 pub mod pricing;
 pub mod records;
 pub mod schema;

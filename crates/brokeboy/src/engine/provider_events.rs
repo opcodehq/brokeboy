@@ -9,6 +9,8 @@ impl Billing {
         &self,
         scope: &str,
         event: ProviderEvent,
+        work_id: &str,
+        lease_owner: &str,
     ) -> Result<()> {
         require(
             self.scope(&event.customer_id)? == scope,
@@ -24,12 +26,23 @@ impl Billing {
         };
         let this = self.clone();
         let scope = scope.to_owned();
+        let work_id = work_id.to_owned();
+        let lease_owner = lease_owner.to_owned();
         self.atomic(&scope.clone(),move|tx|Box::pin(async move{
+            let work=get(tx,Table::Work,&work_id).await?.ok_or_else(||BillingError::new("lease_lost"))?;
+            require(opt(&work,"leaseOwner")==Some(lease_owner.as_str()) && opt(&work,"status")==Some("processing"),"lease_lost")?;
             let marker=format!("applied:{}",event.id);if get(tx,Table::Counters,&marker).await?.is_some(){return Ok(Value::Null);}let data=&event.data;
             if let (Some(subscription),Some(plan))=(data.get("subscription"),plan.as_ref()){
-                let id=s(subscription,"id")?;let existing=get(tx,Table::Subscriptions,id).await?;register_features(tx,plan).await?;
+                let id=s(subscription,"id")?;let existing=get(tx,Table::Subscriptions,id).await?;
+                let pinned=existing.as_ref().filter(|old|data.get("planVersion").is_none() && data.get("plan").is_none() && old["plan"]["id"]==data["planId"]).map(|old|old["plan"].clone()).unwrap_or_else(||plan.clone());
+                let plan=&pinned;
+                register_features(tx,plan).await?;
                 let effective=if data["pending"]==true{existing.as_ref().map(|s|s["plan"].clone()).unwrap_or(plan.clone())}else{plan.clone()};let mut next=subscription.clone();next["plan"]=effective;
-                if let Some(meters)=data.get("meterPriceIds"){next["plan"]["stripeMeterPriceIds"]=meters.clone();}
+                if let Some(meters)=data.get("meterPriceIds"){
+                    let mut merged=next["plan"].get("stripeMeterPriceIds").cloned().unwrap_or(json!({}));
+                    for (feature,price) in meters.as_object().ok_or_else(||BillingError::new("invalid_provider_event"))? {merged[feature]=price.clone();}
+                    next["plan"]["stripeMeterPriceIds"]=merged;
+                }
                 if let Some(old)=&existing{
                     if old["periodStart"]==next["periodStart"]{
                         copy_optional(&mut next,old,"provisioningOffset");
@@ -44,6 +57,7 @@ impl Billing {
                 if matches!(opt(&next,"status"),Some("active"|"trialing"))&&next["plan"]["addOn"]!=true{
                     for mut old in list(tx,Table::Subscriptions,Some("active")).await?{if opt(&old,"id")!=Some(id)&&old.get("entityId")==next.get("entityId")&&old["plan"]["addOn"]!=true&&opt(&old["plan"],"group").unwrap_or("base")==opt(&next["plan"],"group").unwrap_or("base"){old["status"]=json!("ended");put(tx,Table::Subscriptions,s(&old,"id")?,old.clone(),"ended").await?;}}
                 }
+                if let Some(meters)=data.get("providerMeterIds") {next["plan"]["providerMeterIds"]=meters.clone();}
                 let state=if is_entitled(&next,this.now())?{"active"}else{s(&next,"status")?};put(tx,Table::Subscriptions,id,next.clone(),state).await?;this.0.ledger.materialize(tx).await?;
             }
             if event.kind=="purchase.paid"
@@ -52,8 +66,14 @@ impl Billing {
                     if let Some(counter)=opt(data,"topupCounter")&& let Some(old)=get(tx,Table::Counters,counter).await?&& let Some(pending)=opt(&old,"pending")&& this.provider_identity(&scope,pending)?==s(data,"purchaseId")?{put(tx,Table::Counters,counter,json!({"count":old["count"]}),"active").await?;if get(tx,Table::Counters,"topup-pending").await?.as_ref().and_then(|v|opt(v,"operationId"))==Some(pending){put(tx,Table::Counters,"topup-pending",json!({}),"active").await?;}}
                 }
             if event.kind=="payment.reconciliation"{
-                if let Some(purchase)=opt(data,"purchaseId"){for g in list(tx,Table::Grants,Some("active")).await?{if opt(&g,"sourceId")==Some(purchase){put(tx,Table::Grants,s(&g,"id")?,g.clone(),"review").await?;}}}
+                if data["stripeEventType"]!="charge.dispute.created" && let Some(purchase)=opt(data,"purchaseId"){for g in list(tx,Table::Grants,Some("active")).await?{if opt(&g,"sourceId")==Some(purchase){put(tx,Table::Grants,s(&g,"id")?,g.clone(),"review").await?;}}}
                 let id=this.id();this.enqueue(tx,&id,"payment_adjustment",data.clone()).await?;let mut w=get(tx,Table::Work,&id).await?.unwrap();w["status"]=json!("reconciliation");put(tx,Table::Work,&id,w,"reconciliation").await?;
+            }
+            if event.kind=="purchase.adjusted" {
+                this.purchase_adjustment(tx,&event).await?;
+            }
+            if matches!(event.kind.as_str(),"prepaid.paid"|"prepaid.imported") {
+                this.prepaid_event(tx,&event).await?;
             }
             if event.kind=="purchase.reversed"{
                 for mut sub in list(tx,Table::Subscriptions,Some("active")).await?{if sub.get("purchaseId")==data.get("purchaseId"){sub["status"]=json!("ended");put(tx,Table::Subscriptions,s(&sub,"id")?,sub.clone(),"ended").await?;}}

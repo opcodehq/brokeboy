@@ -10,6 +10,40 @@ impl Stripe {
         let key = &command.id;
         let mut common = json!({"stripeCustomerId":customer});
         let result = match command.kind.as_str() {
+            "customer_refresh" => {
+                let mut events = Vec::new();
+                for subscription in arr(p, "subscriptions")? {
+                    let event = ProviderEvent {
+                        id: format!("refresh:{key}"),
+                        kind: "subscription.updated".into(),
+                        customer_id: s(&command.customer, "id")?.into(),
+                        data: json!({"providerCustomerId":customer}),
+                        extra: Default::default(),
+                    };
+                    let mut event = self
+                        .subscription_event(event, s(subscription, "id")?)
+                        .await?;
+                    event.id = format!("refresh:{key}:{}", hash_v1(&event.data)?);
+                    events.push(event);
+                }
+                json!({"providerEvents":events})
+            }
+            "prepaid_checkout" => {
+                let cents = n(p, "amountCents")?;
+                require((1..=99_999_999).contains(&cents), "invalid_amount")?;
+                let mut meta = self.metadata(s(&command.customer, "id")?, None, None)?;
+                meta["brokeboy_purchase"] = json!(key);
+                meta["brokeboy_prepaid_feature"] = p["feature"].clone();
+                meta["brokeboy_prepaid_cents"] = json!(cents.to_string());
+                let mut params = json!({"mode":"payment","customer":customer,"success_url":normalized_url(s(p,"successUrl")?)?,"line_items":[{"price_data":{"currency":"usd","unit_amount":cents,"product_data":{"name":"Prepaid credit"}},"quantity":1}],"metadata":meta,"payment_intent_data":{"metadata":meta}});
+                if let Some(cancel) = opt(p, "cancelUrl") {
+                    params["cancel_url"] = json!(normalized_url(cancel)?);
+                }
+                checkout_options(p, &mut params)?;
+                let session = self.post("checkout/sessions", params, key).await?;
+                json!({"id":session["id"],"url":session["url"]})
+            }
+            "prepaid_balance_import" => self.import_customer_balance(&command, &customer).await?,
             "checkout" => {
                 let plan = p
                     .get("plan")
@@ -43,6 +77,7 @@ impl Stripe {
                 if let Some(cancel) = opt(p, "cancelUrl") {
                     params["cancel_url"] = json!(normalized_url(cancel)?);
                 }
+                checkout_options(p, &mut params)?;
                 if once {
                     params["payment_intent_data"] = json!({"metadata":data});
                     params["invoice_creation"] =
@@ -165,6 +200,10 @@ impl Stripe {
                     .await?;
                 let price_id = s(p, "priceId")?;
                 require(
+                    self.meter_period_open(&sub, p, price_id, &customer).await?,
+                    "reconciliation_required",
+                )?;
+                require(
                     arr(&sub["items"], "data")?
                         .iter()
                         .any(|i| opt(&i["price"], "id") == Some(price_id)),
@@ -217,6 +256,103 @@ impl Stripe {
         }
         Ok(common)
     }
+    async fn meter_period_open(
+        &self,
+        sub: &Value,
+        p: &Value,
+        price: &str,
+        customer: &str,
+    ) -> Result<bool> {
+        let start = n(p, "periodStart")? / 1000;
+        let end = n(p, "periodEnd")? / 1000;
+        require(start >= 0 && end > start, "invalid_billing_period")?;
+        if self.0.options.clock.now() < n(p, "periodEnd")?
+            && !matches!(opt(sub, "status"), Some("canceled" | "incomplete_expired"))
+            && arr(&sub["items"], "data")?.iter().any(|item| {
+                opt(&item["price"], "id") == Some(price)
+                    && item["current_period_start"] == start
+                    && item["current_period_end"] == end
+            })
+        {
+            return Ok(true);
+        }
+        let mut cursor = None;
+        let mut seen = std::collections::BTreeSet::new();
+        let mut matched = false;
+        loop {
+            let mut params =
+                json!({"subscription":sub["id"],"created":{"gte":end-300},"limit":100});
+            if let Some(cursor) = &cursor {
+                params["starting_after"] = json!(cursor);
+            }
+            let page = self.get("invoices", params).await?;
+            let invoices = arr(&page, "data")?;
+            for invoice in invoices {
+                let id = s(invoice, "id")?;
+                require(
+                    seen.insert(id.to_owned()) && seen.len() <= 10000,
+                    "invalid_provider_event",
+                )?;
+                require(
+                    resource_id(&invoice["customer"]) == Some(customer),
+                    "customer_mapping_conflict",
+                )?;
+                let mut line_cursor = None;
+                let mut line_ids = std::collections::BTreeSet::new();
+                loop {
+                    let mut params = json!({"limit":100});
+                    if let Some(cursor) = &line_cursor {
+                        params["starting_after"] = json!(cursor);
+                    }
+                    let lines = self
+                        .get(&format!("{}/lines", path("invoices", id)?), params)
+                        .await?;
+                    let data = arr(&lines, "data")?;
+                    for line in data {
+                        require(
+                            line_ids.insert(s(line, "id")?.to_owned()) && line_ids.len() <= 10000,
+                            "invalid_provider_event",
+                        )?;
+                        if resource_id(&line["pricing"]["price_details"]["price"]) == Some(price)
+                            && line["period"]["start"] == start
+                            && line["period"]["end"] == end
+                        {
+                            if invoice["status"] != "draft" {
+                                return Ok(false);
+                            }
+                            matched = true;
+                        }
+                    }
+                    if lines["has_more"] == false {
+                        break;
+                    }
+                    require(lines["has_more"] == true, "invalid_provider_event")?;
+                    line_cursor = Some(
+                        s(
+                            data.last()
+                                .ok_or_else(|| BillingError::new("invalid_provider_event"))?,
+                            "id",
+                        )?
+                        .to_owned(),
+                    );
+                }
+            }
+            if page["has_more"] == false {
+                break;
+            }
+            require(page["has_more"] == true, "invalid_provider_event")?;
+            cursor = Some(
+                s(
+                    invoices
+                        .last()
+                        .ok_or_else(|| BillingError::new("invalid_provider_event"))?,
+                    "id",
+                )?
+                .to_owned(),
+            );
+        }
+        Ok(matched)
+    }
 }
 pub(super) fn normalized_url(value: &str) -> Result<String> {
     let url = url::Url::parse(value).map_err(|_| BillingError::new("invalid_url"))?;
@@ -227,4 +363,34 @@ pub(super) fn normalized_url(value: &str) -> Result<String> {
         "invalid_url",
     )?;
     Ok(url.to_string())
+}
+fn checkout_options(input: &Value, params: &mut Value) -> Result<()> {
+    if let Some(methods) = input.get("paymentMethodTypes") {
+        let methods = methods
+            .as_array()
+            .ok_or_else(|| BillingError::new("invalid_payment_methods"))?;
+        require(
+            !methods.is_empty() && methods.len() <= 20,
+            "invalid_payment_methods",
+        )?;
+        for method in methods {
+            require(
+                method.as_str().is_some_and(|v| {
+                    !v.is_empty()
+                        && v.len() <= 64
+                        && v.bytes().all(|b| b.is_ascii_lowercase() || b == b'_')
+                }),
+                "invalid_payment_methods",
+            )?;
+        }
+        params["allowed_payment_method_types"] = json!(methods);
+    }
+    if let Some(mode) = opt(input, "requestThreeDSecure") {
+        require(
+            matches!(mode, "automatic" | "any" | "challenge"),
+            "invalid_payment_options",
+        )?;
+        params["payment_method_options"]["card"]["request_three_d_secure"] = json!(mode);
+    }
+    Ok(())
 }

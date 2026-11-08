@@ -14,6 +14,46 @@ pub struct Resources {
     pub identifiers: Arc<dyn Identifiers>,
 }
 impl Resources {
+    pub async fn customer_link(
+        &self,
+        provider: &str,
+        id: &str,
+        customer: Option<&str>,
+    ) -> Result<Option<String>> {
+        let key = format!("provider-customer:{provider}:{id}");
+        let id = id.to_owned();
+        let desired = customer.map(str::to_owned);
+        let result = crate::storage::atomic(self.storage.as_ref(), &self.scope(&key)?, move |tx| {
+            Box::pin(async move {
+                let old = get(tx, Table::Resources, "mapping").await?;
+                if let Some(customer) = desired {
+                    if let Some(old) = old {
+                        require(
+                            opt(&old, "customerId") == Some(customer.as_str())
+                                && opt(&old, "id") == Some(id.as_str()),
+                            "customer_mapping_conflict",
+                        )?;
+                        return Ok(json!(customer));
+                    }
+                    put(
+                        tx,
+                        Table::Resources,
+                        "mapping",
+                        json!({"key":key,"id":id,"customerId":customer}),
+                        "ready",
+                    )
+                    .await?;
+                    Ok(json!(customer))
+                } else {
+                    Ok(old
+                        .and_then(|v| v.get("customerId").cloned())
+                        .unwrap_or(Value::Null))
+                }
+            })
+        })
+        .await?;
+        Ok(result.as_str().map(str::to_owned))
+    }
     fn scope(&self, key: &str) -> Result<String> {
         Ok(format!(
             "{}:r:{}",
@@ -63,6 +103,17 @@ impl Resources {
     }
 }
 impl ResourceRegistry for Resources {
+    fn link_customer(
+        &self,
+        provider: String,
+        id: String,
+        customer: String,
+    ) -> BillingFuture<'_, ()> {
+        Box::pin(async move {
+            self.customer_link(&provider, &id, Some(&customer)).await?;
+            Ok(())
+        })
+    }
     fn get_or_create(&self, key: String, create: ResourceFactory) -> BillingFuture<'_, String> {
         Box::pin(async move {
             let digest = hash_v1(&json!({"environment":self.environment,"key":key}))?;

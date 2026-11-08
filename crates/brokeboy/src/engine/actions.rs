@@ -25,6 +25,9 @@ impl Billing {
         if method.starts_with("workflows.") {
             return self.workflow_action(tx, method, p, key).await;
         }
+        if method.starts_with("periods.") {
+            return self.period_action(tx, method, p, key).await;
+        }
         match method {
             "operations.retry" => {
                 let row = tx
@@ -343,6 +346,13 @@ impl Billing {
                 let mut input = json!({"feature":target,"amount":value,"expiresAt":p["expiresAt"].as_i64().unwrap_or(self.now()+15*60000)});
                 copy_optional(&mut input, p, "entityId");
                 copy_optional(&mut input, &i, "poolScope");
+                if let Some(policy) = p.get("onExpiry") {
+                    require(
+                        policy == "release" || policy == "settle_estimate",
+                        "invalid_expiry_policy",
+                    )?;
+                    input["onExpiry"] = policy.clone();
+                }
                 self.0.ledger.reserve(tx, input, key).await
             }
             "reservations.increase" => {

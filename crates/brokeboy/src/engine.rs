@@ -13,12 +13,15 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 mod actions;
+mod adjustments;
 mod background;
 mod catalog;
 mod migration;
+mod periods;
 mod provider_events;
 mod reads;
 mod subscriptions;
+mod topups;
 mod usage;
 mod workflows;
 
@@ -171,6 +174,18 @@ impl Billing {
         }
     }
     async fn dispatch(&self, method: &str, input: Value, request: &RequestGuard) -> Result<Value> {
+        if method == "operations.unmatched" {
+            return self
+                .atomic(&self.catalog_scope(), move |tx| {
+                    Box::pin(async move {
+                        Ok(json!(tx.list(Table::Inbox, Some("reconciliation")).await?))
+                    })
+                })
+                .await;
+        }
+        if method == "operations.replayUnmatched" {
+            return self.replay_unmatched(input).await;
+        }
         if method == "diagnostics.doctor" {
             let mut tx = self.0.storage.begin(&self.catalog_scope()).await?;
             let result = async {
@@ -184,6 +199,40 @@ impl Billing {
         }
         if method == "migration.import" {
             return self.migration_import(input, request).await;
+        }
+        if method == "migration.adoptStripeCustomer" {
+            return self.adopt_stripe_customer(input, request).await;
+        }
+        if method == "migration.inspectStripeSubscription" {
+            let plan = self.plan(s(&input, "planId")?, None).await?;
+            let provider = self
+                .0
+                .options
+                .provider
+                .as_ref()
+                .ok_or_else(|| BillingError::new("provider_missing"))?;
+            let mut parameters = input.clone();
+            parameters["plan"] = plan;
+            parameters["provider"] = json!("stripe");
+            return provider
+                .execute(crate::provider::PaymentCommand {
+                    id: brokeboy_core::compatibility::hash_v1(&input)?,
+                    kind: "subscription_inspect".into(),
+                    customer: json!({"id":s(&input,"customerId")?}),
+                    input: parameters,
+                    resources: self.0.resources.clone(),
+                })
+                .await;
+        }
+        if matches!(method, "periods.get" | "periods.check") {
+            let scope = self.scope(s(&input, "customerId")?)?;
+            let this = self.clone();
+            let method = method.to_owned();
+            return self
+                .atomic(&scope, move |tx| {
+                    Box::pin(async move { this.period_read(tx, &method, &input).await })
+                })
+                .await;
         }
         if method == "migration.export" {
             let scope = self.scope(s(&input, "customerId")?)?;
@@ -257,6 +306,8 @@ impl Billing {
                 | "commerce.creditNote"
                 | "catalog.migrate"
                 | "migration.linkSubscription"
+                | "prepaid.checkout"
+                | "migration.importStripeBalance"
         ) {
             return self.subscription_call(method, input, request).await;
         }
@@ -384,10 +435,21 @@ impl Billing {
         tx: &mut dyn Transaction,
         id: &str,
         kind: &str,
-        payload: Value,
+        mut payload: Value,
     ) -> Result<()> {
         if get(tx, Table::Work, id).await?.is_some() {
             return Ok(());
+        }
+        require(payload.is_object(), "invalid_work_payload")?;
+        if !matches!(kind, "event" | "webhook" | "workflow_timeout")
+            && payload.get("provider").is_none()
+            && let Some(provider) = &self.0.options.provider
+        {
+            payload["provider"] = json!(
+                payload["plan"]["provider"]
+                    .as_str()
+                    .unwrap_or(provider.provider_id())
+            );
         }
         put(tx,Table::Work,id,json!({"id":id,"kind":kind,"payload":payload,"status":"pending","attempts":0,"availableAt":self.now(),"createdAt":self.now()}),"pending").await
     }

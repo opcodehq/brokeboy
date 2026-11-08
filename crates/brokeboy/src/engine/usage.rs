@@ -166,6 +166,15 @@ impl Billing {
             && opt(t, "feature") == Some(feature)
             && amount(&b, "available")? < amount(t, "below")?
         {
+            // A verified notification can replenish this balance. Apply it before
+            // admitting a new external purchase, including renewal notifications.
+            if list(tx, Table::Work, None)
+                .await?
+                .iter()
+                .any(|w| opt(w, "kind") == Some("webhook") && opt(w, "status") != Some("done"))
+            {
+                return Ok(());
+            }
             let counter = format!("topup:{}", &now[..7]);
             let previous = get(tx, Table::Counters, &counter)
                 .await?
@@ -199,7 +208,7 @@ impl Billing {
                     tx,
                     &id,
                     "auto_topup",
-                    json!({"planId":t["packPlan"],"counter":counter,"customerId":customer}),
+                    json!({"planId":t["packPlan"],"counter":counter,"customerId":customer,"admissionVersion":1}),
                 )
                 .await?;
             }
@@ -279,8 +288,12 @@ impl Billing {
         }
         if charge != 0 {
             require(
-                opt(sub, "stripeSubscriptionId").is_some()
-                    && sub["plan"]["stripeMeterPriceIds"]
+                opt(sub, "providerSubscriptionId")
+                    .or_else(|| opt(sub, "stripeSubscriptionId"))
+                    .is_some()
+                    && sub["plan"]
+                        .get("providerMeterIds")
+                        .unwrap_or(&sub["plan"]["stripeMeterPriceIds"])
                         .get(s(p, "feature")?)
                         .and_then(Value::as_str)
                         .is_some(),
@@ -369,7 +382,7 @@ impl Billing {
             put(tx,Table::Counters,&format!("meter-total:{}",s(&q,"budgetKey")?),json!({"total":q["aggregateTotal"],"quantity":d(amount(&q["aggregate"],"quantity")?+cost)?,"generation":n(&q["aggregate"],"generation")?+1}),"active").await?;
             put(tx,Table::Counters,&format!("meter-version:{}",s(&q,"meterKey")?),json!({"total":q["versionTotal"],"generation":n(&q["versionAggregate"],"generation")?+1}),"active").await?;
             if u(&charge)? != 0 {
-                self.enqueue(tx,&format!("usage:{key}"),"meter",json!({"customerId":p["customerId"],"subscriptionId":q["sub"]["stripeSubscriptionId"],"feature":target,"delta":charge,"total":q["versionTotal"],"meterKey":q["meterKey"],"generation":n(&q["versionAggregate"],"generation")?+1,"currency":code,"periodStart":q["sub"]["periodStart"],"periodEnd":q["sub"]["periodEnd"],"priceId":q["sub"]["plan"]["stripeMeterPriceIds"][target]})).await?;
+                self.enqueue(tx,&format!("usage:{key}"),"meter",json!({"customerId":p["customerId"],"provider":q["sub"].get("provider").cloned().unwrap_or(json!("stripe")),"subscriptionId":q["sub"].get("providerSubscriptionId").unwrap_or(&q["sub"]["stripeSubscriptionId"]),"feature":target,"delta":charge,"total":q["versionTotal"],"meterKey":q["meterKey"],"generation":n(&q["versionAggregate"],"generation")?+1,"currency":code,"periodStart":q["sub"]["periodStart"],"periodEnd":q["sub"]["periodEnd"],"priceId":q["sub"]["plan"].get("providerMeterIds").unwrap_or(&q["sub"]["plan"]["stripeMeterPriceIds"])[target]})).await?;
             }
         } else {
             allocations = self

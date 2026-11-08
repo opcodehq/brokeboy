@@ -77,13 +77,18 @@ impl Stripe {
                 | "checkout.session.async_payment_succeeded"
                 | "charge.refunded"
                 | "charge.dispute.created"
+                | "charge.dispute.funds_withdrawn"
+                | "charge.dispute.funds_reinstated"
+                | "refund.updated"
+                | "refund.failed"
         ) {
             return Ok(None);
         }
         let object = &event["data"]["object"];
         let mut customer = resource_id(&object["customer"]).map(str::to_owned);
         let mut meta = object.get("metadata").cloned().unwrap_or(json!({}));
-        if kind == "charge.dispute.created"
+        if (kind.starts_with("charge.dispute.")
+            || matches!(kind, "refund.updated" | "refund.failed"))
             && let Some(id) = resource_id(&object["charge"])
         {
             let charge = self.get(&path("charges", id)?, json!({})).await?;
@@ -91,24 +96,24 @@ impl Stripe {
             meta = charge["metadata"].clone();
         }
         if opt(&meta, "brokeboy_customer").is_none()
-            && let Some(customer) = customer
+            && let Some(customer) = &customer
         {
-            let c = self.get(&path("customers", &customer)?, json!({})).await?;
+            let c = self.get(&path("customers", customer)?, json!({})).await?;
             if c["deleted"] != true {
                 meta = c["metadata"].clone();
             }
         }
-        let Some(customer) = opt(&meta, "brokeboy_customer") else {
-            return Ok(None);
-        };
-        if opt(&meta, "brokeboy_environment") != Some(self.0.options.environment.name()) {
-            return Ok(None);
+        if let Some(environment) = opt(&meta, "brokeboy_environment") {
+            require(
+                environment == self.0.options.environment.name(),
+                "environment_mismatch",
+            )?;
         }
         Ok(Some(ProviderEvent {
             id: s(&event, "id")?.into(),
             kind: kind.into(),
-            customer_id: customer.into(),
-            data: json!({"stripeEventType":kind,"objectId":object["id"],"object":object}),
+            customer_id: opt(&meta, "brokeboy_customer").unwrap_or("").into(),
+            data: json!({"provider":"stripe","providerCustomerId":customer,"stripeEventType":kind,"objectId":object["id"],"object":object}),
             extra: Default::default(),
         }))
     }
@@ -123,6 +128,8 @@ impl Stripe {
                 json!({"expand":["latest_invoice"]}),
             )
             .await?;
+        self.live(&sub)?;
+        require(opt(&sub, "id") == Some(id), "invalid_provider_event")?;
         let first = arr(&sub["items"], "data")?
             .iter()
             .find(|i| opt(&i["price"]["recurring"], "usage_type") != Some("metered"))
@@ -136,10 +143,18 @@ impl Stripe {
         } else {
             0
         };
+        if let Some(customer) = opt(&sub["metadata"], "brokeboy_customer") {
+            require(customer == event.customer_id, "customer_mapping_conflict")?;
+        }
+        if let Some(environment) = opt(&sub["metadata"], "brokeboy_environment") {
+            require(
+                environment == self.0.options.environment.name(),
+                "environment_mismatch",
+            )?;
+        }
         require(
-            opt(&sub["metadata"], "brokeboy_customer") == Some(event.customer_id.as_str())
-                && opt(&sub["metadata"], "brokeboy_environment")
-                    == Some(self.0.options.environment.name()),
+            opt(&event.data, "providerCustomerId")
+                .is_none_or(|id| resource_id(&sub["customer"]) == Some(id)),
             "customer_mapping_conflict",
         )?;
         let mut meters = json!({});
@@ -239,8 +254,43 @@ impl Stripe {
             "checkout.session.completed" | "checkout.session.async_payment_succeeded"
         ) {
             let session = self
-                .get(&path("checkout/sessions", s(object, "id")?)?, json!({}))
+                .get(
+                    &path("checkout/sessions", s(object, "id")?)?,
+                    json!({"expand":["payment_intent.latest_charge"]}),
+                )
                 .await?;
+            require(
+                opt(&event.data, "providerCustomerId")
+                    .is_none_or(|id| resource_id(&session["customer"]) == Some(id)),
+                "customer_mapping_conflict",
+            )?;
+            if opt(&session["metadata"], "brokeboy_prepaid_feature").is_some()
+                && session["payment_status"] == "paid"
+            {
+                let intent = &session["payment_intent"];
+                let charge = &intent["latest_charge"];
+                let cents = n(&session, "amount_total")?;
+                require(
+                    session["currency"] == "usd"
+                        && session["mode"] == "payment"
+                        && intent["status"] == "succeeded"
+                        && intent["amount_received"] == cents
+                        && charge["paid"] == true
+                        && charge["captured"] == true
+                        && charge["amount_captured"] == cents
+                        && charge["currency"] == "usd"
+                        && opt(&session["metadata"], "brokeboy_prepaid_cents")
+                            == Some(cents.to_string().as_str()),
+                    "unverified_payment",
+                )?;
+                return Ok(ProviderEvent {
+                    id: event.id,
+                    kind: "prepaid.paid".into(),
+                    customer_id: event.customer_id,
+                    data: json!({"purchaseId":session["metadata"]["brokeboy_purchase"],"feature":session["metadata"]["brokeboy_prepaid_feature"],"creditCents":cents}),
+                    extra: Default::default(),
+                });
+            }
             if opt(&session, "mode") == Some("subscription")
                 && let Some(id) = resource_id(&session["subscription"])
             {
@@ -252,7 +302,10 @@ impl Stripe {
                 return self.purchase_event(&event, &session);
             }
         }
-        if matches!(kind, "charge.refunded" | "charge.dispute.created") {
+        if kind == "charge.refunded"
+            || matches!(kind, "refund.updated" | "refund.failed")
+            || kind.starts_with("charge.dispute.")
+        {
             let id = if kind == "charge.refunded" {
                 s(object, "id")?
             } else {
@@ -260,6 +313,12 @@ impl Stripe {
                     .ok_or_else(|| BillingError::new("invalid_provider_event"))?
             };
             let charge = self.get(&path("charges", id)?, json!({})).await?;
+            self.live(&charge)?;
+            require(
+                opt(&event.data, "providerCustomerId")
+                    .is_none_or(|id| resource_id(&charge["customer"]) == Some(id)),
+                "customer_mapping_conflict",
+            )?;
             let mut purchase = None;
             if let Some(id) = resource_id(&charge["payment_intent"]) {
                 let pi = self.get(&path("payment_intents", id)?, json!({})).await?;
@@ -271,20 +330,69 @@ impl Stripe {
                 let invoice = self.get(&path("invoices", id)?, json!({})).await?;
                 purchase = opt(&invoice["metadata"], "brokeboy_purchase").map(str::to_owned);
             }
-            let full = kind == "charge.refunded"
-                && charge["amount_refunded"] == charge["amount"]
-                && purchase.is_some();
-            let mut event = event;
-            event.kind = if full {
-                "purchase.reversed"
-            } else {
-                "payment.reconciliation"
+            let mut event = event.clone();
+            let Some(purchase) = purchase else {
+                event.kind = "payment.reconciliation".into();
+                event.data["requiresReview"] = json!(true);
+                return Ok(event);
+            };
+            if kind == "charge.dispute.created" {
+                event.kind = "payment.reconciliation".into();
+                event.data["requiresReview"] = json!(true);
+                return Ok(event);
             }
-            .into();
-            if let Some(purchase) = purchase {
-                event.data["purchaseId"] = json!(purchase);
+            let mut refunded = 0_i64;
+            let mut cursor: Option<String> = None;
+            let mut seen = std::collections::BTreeSet::new();
+            loop {
+                let mut params = json!({"charge":id,"limit":100});
+                if let Some(cursor) = &cursor {
+                    params["starting_after"] = json!(cursor);
+                }
+                let page = self.get("refunds", params).await?;
+                let refunds = arr(&page, "data")?;
+                for refund in refunds {
+                    require(
+                        resource_id(&refund["charge"]) == Some(id),
+                        "invalid_provider_event",
+                    )?;
+                    require(
+                        seen.insert(s(refund, "id")?.to_owned()) && seen.len() <= 10000,
+                        "invalid_provider_event",
+                    )?;
+                    match opt(refund, "status") {
+                        Some("succeeded") => {
+                            let amount = n(refund, "amount")?;
+                            require(amount > 0, "invalid_provider_event")?;
+                            refunded = refunded
+                                .checked_add(amount)
+                                .ok_or_else(|| BillingError::new("amount_overflow"))?;
+                        }
+                        Some("pending" | "failed" | "canceled" | "requires_action") => {}
+                        _ => return Err(BillingError::new("invalid_provider_event")),
+                    }
+                }
+                if page["has_more"] == false {
+                    break;
+                }
+                require(page["has_more"] == true, "invalid_provider_event")?;
+                cursor = Some(
+                    s(
+                        refunds
+                            .last()
+                            .ok_or_else(|| BillingError::new("invalid_provider_event"))?,
+                        "id",
+                    )?
+                    .into(),
+                );
             }
-            event.data["requiresReview"] = json!(true);
+            event.kind = "purchase.adjusted".into();
+            event.data["purchaseId"] = json!(purchase);
+            event.data["paidMinor"] = charge["amount"].clone();
+            event.data["refundedMinor"] = json!(refunded);
+            if kind.starts_with("charge.dispute.funds_") {
+                event.data["dispute"] = json!({"id":object["id"],"amount":object["amount"],"reinstated":kind=="charge.dispute.funds_reinstated"});
+            }
             return Ok(event);
         }
         Ok(event)

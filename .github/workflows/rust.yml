@@ -45,6 +45,7 @@ jobs:
       - run: cargo check -p brokeboy --no-default-features --features mysql --locked
       - run: cargo check -p brokeboy --no-default-features --features sqlite --locked
       - run: cargo check -p brokeboy --no-default-features --features stripe,http --locked
+      - run: cargo check -p brokeboy --no-default-features --features polar --locked
       - run: cargo doc --workspace --all-features --no-deps --locked
   native-proof:
     strategy:

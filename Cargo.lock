@@ -95,7 +95,9 @@ dependencies = [
 name = "brokeboy"
 version = "0.2.0-alpha.0"
 dependencies = [
+ "base64 0.22.1",
  "brokeboy-core",
+ "chrono",
  "hex",
  "hmac 0.12.1",
  "http",

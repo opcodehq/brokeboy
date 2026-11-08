@@ -48,6 +48,7 @@ cargo check -p brokeboy --no-default-features --features postgres --locked
 cargo check -p brokeboy --no-default-features --features mysql --locked
 cargo check -p brokeboy --no-default-features --features sqlite --locked
 cargo check -p brokeboy --no-default-features --features stripe,http --locked
+cargo check -p brokeboy --no-default-features --features polar --locked
 cargo doc --workspace --all-features --no-deps --locked
 bun run types:check
 bun run check
@@ -97,10 +98,10 @@ The measured stripped thin-LTO addon was 16,358,224 bytes and its CLI was 15,989
 
 ## Remaining release gates
 
-1. Extend executable native parity to every existing billing/payment scenario and all required fault cases; the thirteen frozen traces and targeted native scenarios are substantial coverage, not proof of the complete release matrix. In particular, qualify postpaid invoice finalization, top-up/renewal races, schedules/proration, partial refunds/disputes, provider-window ambiguity and process/connection loss across all databases.
+1. Extend executable native parity to every existing billing/payment scenario and all required fault cases. The dated embedding qualification below adds real Stripe invoice finalization, top-up/renewal races, refunds/disputes, and PostgreSQL 16 transaction/process failures. Schedules/proration, ambiguous payment outcomes beyond provider retry windows, and external-payment failures across every database remain release work. The thirteen frozen traces and targeted scenarios do not establish the complete matrix.
 2. All seven artifact targets pass their Node 24 native-addon/CLI execution check. Complete Node 22/Bun and packed-root installation qualification on the remaining architecture/libc combinations; the full Node 22/24/Bun source matrix currently covers Linux x64 GNU, macOS ARM64 and Windows x64. Runner availability is restored.
 3. Complete database statement tracing and publish comparable contention/initialization/bundle measurements for the actual distribution artifacts. Rehearse application-specific backup/restore and migration with external-state cutover.
-4. Exercise browser checkout, public Stripe webhook delivery, 3DS/delayed payment paths, tax/discounts and broader sandbox scenarios. Signing retrieved real provider state does not establish public delivery or every merchant flow.
+4. Extend the dated real prepaid checkout, public delivery, successful 3DS challenge, ACH, refund and dispute results below to declined/abandoned authentication, additional delayed payment methods, tax/discounts and the broader merchant matrix. Signing retrieved real provider state alone still does not establish public delivery; the new public tests use an actual registered endpoint.
 5. After these gates pass, switch the default 0.2 package exports, remove TypeScript production billing rules from that line, qualify installation of the exact release archives, and publish crates/packages/docs/examples together. Retain 0.1 maintenance for Workers/D1.
 
 ## Hosted execution
@@ -117,3 +118,61 @@ Earlier hosted runs were blocked by account payment/spending restrictions; they 
 The seven-target run [42424524446](https://github.com/opcodehq/brokeboy/actions/runs/42424524446) passed build and execution on its own runner images, and [42424498980](https://github.com/opcodehq/brokeboy/actions/runs/42424498980) passed the full Rust/Node/Bun qualification matrix for the webhook hardening change. Additional cross-distribution validation found that Ubuntu 24.04's GNU artifact imports `GLIBC_2.38` and fails on this Amazon Linux 2023 VM (`glibc 2.34`). Those GNU artifacts are not suitable for that deployment despite passing on Ubuntu.
 
 The GNU jobs now build and execute on matching manylinux/glibc 2.28 containers and also execute the same artifact on the current GNU host. `gnu_only` permits targeted rebuilding. The [portable GNU run 42425641416](https://github.com/opcodehq/brokeboy/actions/runs/42425641416) passed both architectures. Both addons import no glibc symbol newer than 2.28. The downloaded x64 addon and CLI, and an isolated installation of the packed promise/Effect SDK, also executed successfully on this Amazon Linux 2023/glibc 2.34 VM. The earlier Ubuntu GNU artifacts should not be used for that deployment. macOS, Windows and musl remain covered by their own jobs. This does not change billing rules or introduce a compiler requirement for consumers.
+
+## Embedding qualification, 2026-11-08
+
+[Embedding and cutover](embedding.md) records the working-tree reference audit, each requested gap, new Rust APIs, source-balance transfer protocol, processor routing and the exact application responsibilities retained at the integration boundary. No Mac application code was edited. Frozen compatibility fixtures, schema DDL, dependency versions and default package exports remain unchanged. No tag, crate or npm package was published.
+
+Local qualification ran with PostgreSQL **16.14** on a new isolated data directory, the existing MariaDB **10.5.29** fixture directory, SQLite, Node **24.22.1**, Bun **1.3.10**, and Rust **1.94**. The PostgreSQL 15 data directory was left intact. MariaDB is not a MySQL 8 qualification; hosted results for this revision must be checked separately. Disk availability was checked before builds and remained over 30 GB.
+
+- Formatting, strict workspace Clippy, workspace tests, documentation compilation, no-default-feature checks for each SQL adapter, `stripe,http`, and independent `polar` all pass. Thirty-one Rust harness tests pass, including the subprocess helper used by the real PostgreSQL fault test.
+- Generated DTO/schema checks, Biome, TypeScript checks, the existing 129 Bun tests, three Node SQLite tests, the Neon WebSocket test and both D1 tests pass. The complete `check` command initially found an unformatted documentation table; it passes after formatting.
+- Native Node tests pass **12/12**. Native Bun passes **79/79**, including the shared 0.1/native engine and workflow assertions. Frozen receipts/hashes/archives still pass against all three local SQL integrations. The compatibility fixtures were read, never regenerated.
+- New engine scenarios cover cumulative partial/failed refunds, duplicate/reordered disputes, spent/held-credit shortfalls, adopted/unmatched customers, immutable cost-period receipts and status/cap boundaries, concurrent streams, estimate settlement on abandonment, late actuals, stale provider-worker fencing, and canceling an unstarted top-up after an accepted replenishment. Source debit response loss in the Stripe HTTP fixture retains one external key and one source transaction.
+- A real PostgreSQL 16 test terminates the connection before a financial commit, then kills a separate process while it holds an unfinished debit. Both leave the original balance intact; retry records one debit and replay returns the same receipt. Another test uses an independently owned Brokeboy pool alongside an application table and verifies that table and the application's pool survive billing shutdown.
+- The Rust streaming example runs and reports `4.945` available after a `0.025` actual cost and one `0.03` abandoned estimate from a five-unit grant.
+
+### Real Stripe evidence
+
+All calls used the merchant-authorized test-mode key from the ignored environment. No live key or live payment was used. Test customers, clocks, prices, products, checkout sessions and the temporary registered webhook destination are fixture resources with explicit cleanup.
+
+| Flow                     | Actual evidence                                                                                                                                                                                                                                   | Boundary                                                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Prepaid browser checkout | A real browser completed the Rust-created checkout; Stripe delivered `checkout.session.completed` to the registered public HTTPS receiver; PostgreSQL wallet gained exactly one dollar                                                            | Prepaid checkout, not browser qualification of every subscription variant                                    |
+| 3DS                      | Browser completed the challenge; retrieved charge reports `authentication_flow: challenge`, `result: authenticated`, version 2.1.0; public delivery provisioned one dollar                                                                        | Declines and abandonment remain separate cases                                                               |
+| ACH                      | Browser connected a sandbox bank account and submitted payment; actual completion preceded `checkout.session.async_payment_succeeded`; credit was provisioned on confirmed success                                                                | Other asynchronous methods remain unqualified                                                                |
+| Partial refund           | Rust issued a 25-cent refund; real `charge.refunded` and `refund.updated` deliveries moved the wallet from 1.00 to 0.75 once                                                                                                                      | Not a simulation of a refund payload                                                                         |
+| Failed refund            | A real refund initially succeeded, then Stripe changed it to failed and delivered `refund.updated` plus `refund.failed`; the 25-cent clawback was compensated once                                                                                | Additional cancellation/reversal mechanisms remain fixtures or merchant work                                 |
+| Disputes                 | Real test-card disputes emitted creation, funds withdrawn and funds reinstated; submitting documented winning evidence restored the disputed value; official Stripe CLI redelivery preserved the balance                                          | New code does not reconstruct pre-cutover purchase allocations                                               |
+| Opening balance          | Native dry run inspected 375 cents; apply created one source debit, verified a zero Stripe balance and granted 3.75 locally; same-key and different-key replays did not duplicate either side                                                     | Requires a host fence; no real application cutover was performed                                             |
+| Metered invoice          | Rust exported a five-cent rated amount; the real renewed invoice contained quantity 5 and amount 5 for the meter; after finalization, the remaining two-cent export entered reconciliation                                                        | Invoice was finalized open; this does not qualify every collection/tax scenario                              |
+| Top-up/renewal races     | Twenty concurrent consumptions and eight competing maintenance calls produced one paid top-up invoice; duplicate paid-invoice notifications granted one pack; competing paid-renewal notifications refreshed the allowance without another top-up | Real Stripe state with locally signed renewal notifications; public delivery is established separately above |
+
+The race exercise initially exposed an unnecessary second top-up before paid renewal state was synchronized. The engine now refreshes authoritative subscription state before an unstarted automatic purchase, rechecks the balance, durably records a skip or external-start decision, and keeps uncertain external attempts recoverable. The corrected real exercise passes. An earlier one-shot allowance assertion also failed without a saved provider diagnostic; a diagnostic was added and the later complete run passed. That earlier failure is not a passing result.
+
+Rebuilding the debug addon in place while the test receiver was running caused a Bun segmentation fault. The build script now copies to a fresh file and atomically renames it, retaining the inode mapped by an existing process. The receiver resumed against its existing PostgreSQL state; the official Stripe CLI redelivered the missed and duplicate reinstatement notifications, and the ledgers reconciled. Subsequent native rebuilds left the receiver running. This is a development build/recovery observation, not a claim that every runtime crash path is qualified.
+
+Reproduce real exercises explicitly, outside ordinary CI:
+
+```sh
+# Create a temporary public HTTPS tunnel to the receiver port first.
+STRIPE_QUALIFICATION_PUBLIC_URL=https://your-test-receiver.example \
+  TEST_POSTGRES_URL=postgresql://localhost/disposable_billing \
+  bun scripts/stripe-public-qualification.ts
+# Browser sessions use checkout URLs in target/stripe-public-qualification/state.json.
+# Supported follow-up actions: inspect, refund, add-dispute, win-dispute,
+# add-delayed, add-refundfailure, refund-failure, opening, maintain, status, resume.
+bun scripts/stripe-meter-qualification.ts
+BROKEBOY_SANDBOX_ENGINE=rust STRIPE_TEST_RACES=true \
+  STRIPE_TEST_CLOCK_ADVANCE=true bun scripts/stripe-sandbox.ts
+```
+
+The receiver has no administrative HTTP endpoint. Credentials are never printed; its recoverable webhook secret is kept only in the ignored target directory with mode 0600. Stop it normally to remove its webhook destination and fixture customers. Preserve evidence before cleaning local fixtures. `target/stripe-meter-evidence.json` records the real invoice assertion; public receiver state records actual event IDs and observed balances.
+
+### Remaining integration and release work
+
+The host keeps resource observation/attribution, lifecycle ownership and snapshot leases, cost-window splitting and fractional checkpoints, existing financial versus telemetry outboxes, original historical receipts, and pre-cutover adjustment provenance. Its original integration tests were not run against a substituted host implementation. The new period/expiry policies require native maintenance; the 0.1 maintenance engine does not implement them.
+
+Polar is fixture-qualified for signatures, HTTPS URL checks, checkout/portal requests, canonical subscription ownership and stable rated usage identity. No real Polar credential or merchant flow was available. Provider meter-summary reconciliation remains on the host until qualified. SQLx 0.8/Reqwest 0.12 coexistence is documented using independent pools; the actual host build is still unverified.
+
+Other open release work includes loss after a real provider-side financial commit, expired provider idempotency windows, failure matrices on every database and native platform, more subscription/schedule/tax/discount cases, round-trip tracing, new artifact measurements and exact distribution-archive installation. Prior seven-platform artifacts and measurements describe their earlier source revisions, not these new billing capabilities. No new performance claim is made.

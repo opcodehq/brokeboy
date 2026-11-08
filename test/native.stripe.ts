@@ -136,10 +136,24 @@ test("native Stripe HTTP preserves intents, verifies paid state, deduplicates an
           metadata: state.purchase,
         };
       else if (path === "/v1/refunds")
-        value = { id: "re_native", status: "succeeded" };
+        value =
+          request.method === "POST"
+            ? { id: "re_native", status: "succeeded" }
+            : {
+                data: [
+                  {
+                    id: "re_native",
+                    charge: "ch_native",
+                    amount: 1000,
+                    status: "succeeded",
+                  },
+                ],
+                has_more: false,
+              };
       else if (path === "/v1/charges/ch_native")
         value = {
           id: "ch_native",
+          livemode: false,
           customer: "cus_native",
           payment_intent: "pi_native",
           amount: 1000,
@@ -338,7 +352,7 @@ test("native Stripe HTTP preserves intents, verifies paid state, deduplicates an
     assert.ok(
       operations.some(
         (w: { kind: string; status: string }) =>
-          w.kind === "refund_adjustment" && w.status === "reconciliation",
+          w.kind === "payment_adjustment" && w.status === "reconciliation",
       ),
     );
     const plan = await call(handle, "catalog.get", { id: "pack" });
@@ -357,6 +371,347 @@ test("native Stripe HTTP preserves intents, verifies paid state, deduplicates an
     await handle?.close();
     await new Promise<void>((resolve, reject) =>
       server.close((error) => (error ? reject(error) : resolve())),
+    );
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("native prepaid checkout, opening balances, adoption and cumulative reversals use canonical Stripe state", async () => {
+  const directory = await mkdtemp(
+    resolve(tmpdir(), "brokeboy-prepaid-native-"),
+  );
+  let handle: Handle | undefined;
+  const errors: unknown[] = [];
+  const state = {
+    credit: 375,
+    paid: false,
+    metadata: {} as Record<string, string>,
+    refunded: 0,
+    refundStatus: "succeeded",
+  };
+  let sourceDebit: Record<string, unknown> | undefined;
+  let sourceDebitCalls = 0;
+  const sourceDebitKeys = new Set<string | undefined>();
+  const server = createServer((request, response) => {
+    void (async () => {
+      const chunks: Buffer[] = [];
+      for await (const chunk of request) chunks.push(Buffer.from(chunk));
+      const params = new URLSearchParams(Buffer.concat(chunks).toString());
+      const path = new URL(request.url!, "http://localhost").pathname;
+      let value: unknown;
+      if (path === "/v1/customers/cus_existing")
+        value = {
+          id: "cus_existing",
+          livemode: false,
+          currency: "usd",
+          balance: -state.credit,
+          metadata: {},
+        };
+      else if (path === "/v1/customers/cus_existing/balance_transactions") {
+        if (request.method === "POST") {
+          sourceDebitCalls++;
+          sourceDebitKeys.add(
+            request.headers["idempotency-key"] as string | undefined,
+          );
+          sourceDebit ||= {
+            id: "cbtxn_opening",
+            amount: 375,
+            ending_balance: 0,
+            currency: "usd",
+            metadata: {
+              brokeboy_opening_balance: params.get(
+                "metadata[brokeboy_opening_balance]",
+              ),
+            },
+          };
+          assert.equal(params.get("amount"), "375");
+          state.credit = 0;
+          if (sourceDebitCalls === 1) {
+            response.writeHead(500);
+            response.end("{}");
+            return;
+          }
+          value = sourceDebit;
+        } else
+          value = { data: sourceDebit ? [sourceDebit] : [], has_more: false };
+      } else if (
+        path === "/v1/checkout/sessions" &&
+        request.method === "POST"
+      ) {
+        assert.equal(
+          params.get("line_items[0][price_data][unit_amount]"),
+          "125",
+        );
+        assert.equal(params.get("allowed_payment_method_types[0]"), "card");
+        assert.equal(params.get("payment_method_types[0]"), null);
+        assert.equal(
+          params.get("payment_method_options[card][request_three_d_secure]"),
+          "any",
+        );
+        state.metadata = Object.fromEntries(
+          [...params]
+            .filter(([k]) => /^metadata\[[^\]]+\]$/.test(k))
+            .map(([k, v]) => [k.slice(9, -1), v]),
+        );
+        value = {
+          id: "cs_prepaid",
+          url: "https://checkout.stripe.com/fixture",
+        };
+      } else if (path === "/v1/checkout/sessions/cs_prepaid")
+        value = {
+          id: "cs_prepaid",
+          customer: "cus_existing",
+          mode: "payment",
+          currency: "usd",
+          amount_total: 125,
+          payment_status: state.paid ? "paid" : "unpaid",
+          metadata: state.metadata,
+          payment_intent: {
+            id: "pi_prepaid",
+            status: "succeeded",
+            amount_received: 125,
+            latest_charge: {
+              id: "ch_prepaid",
+              paid: true,
+              captured: true,
+              amount_captured: 125,
+              currency: "usd",
+            },
+          },
+        };
+      else if (path === "/v1/charges/ch_prepaid")
+        value = {
+          id: "ch_prepaid",
+          customer: "cus_existing",
+          livemode: false,
+          amount: 125,
+          payment_intent: "pi_prepaid",
+          metadata: state.metadata,
+        };
+      else if (path === "/v1/payment_intents/pi_prepaid")
+        value = {
+          id: "pi_prepaid",
+          customer: "cus_existing",
+          metadata: state.metadata,
+        };
+      else if (path === "/v1/refunds")
+        value = {
+          data: state.refunded
+            ? [
+                {
+                  id: "re_partial",
+                  charge: "ch_prepaid",
+                  amount: state.refunded,
+                  status: state.refundStatus,
+                },
+              ]
+            : [],
+          has_more: false,
+        };
+      else throw new Error(`Unexpected prepaid fixture route ${path}`);
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify(value));
+    })().catch((error) => {
+      errors.push(error);
+      response.writeHead(500);
+      response.end("{}");
+    });
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  try {
+    const address = server.address();
+    assert.ok(address && typeof address !== "string");
+    const path = resolve(directory, "billing.sqlite");
+    const seeded = spawnSync("bun", ["scripts/seed-native-fixture.ts", path], {
+      encoding: "utf8",
+    });
+    assert.equal(seeded.status, 0, seeded.stderr);
+    handle = await NativeBilling.open(
+      JSON.stringify({
+        database: {
+          driver: "sqlite",
+          url: `sqlite://${path}`,
+          maxConnections: 1,
+        },
+        environment: "test",
+        stripe: {
+          secretKey: "sk_test_fixture_only",
+          webhookSecret: "whsec_fixture",
+          apiBase: `http://127.0.0.1:${address.port}/v1`,
+        },
+      }),
+    );
+    const adoption = {
+      customerId: "prepaid",
+      stripeCustomerId: "cus_existing",
+      idempotencyKey: "adopt",
+    };
+    assert.equal(
+      (await call(handle, "migration.adoptStripeCustomer", adoption)).dryRun,
+      true,
+    );
+    await assert.rejects(
+      call(handle, "customers.get", { customerId: "prepaid" }),
+      /customer_not_found/,
+    );
+    await call(handle, "migration.adoptStripeCustomer", {
+      ...adoption,
+      dryRun: false,
+    });
+    await call(handle, "migration.adoptStripeCustomer", {
+      ...adoption,
+      dryRun: false,
+    });
+    const opening = {
+      customerId: "prepaid",
+      feature: "wallet",
+      idempotencyKey: "opening-preview",
+    };
+    assert.equal(
+      (await call(handle, "migration.importStripeBalance", opening)).result
+        .creditCents,
+      375,
+    );
+    const balance = async () =>
+      (
+        await call(handle!, "credits.balance", {
+          customerId: "prepaid",
+          feature: "wallet",
+        })
+      ).available;
+    assert.equal(await balance(), "0");
+    const apply = {
+      ...opening,
+      expectedCreditCents: 375,
+      externalSpendingDisabled: true,
+      dryRun: false,
+      idempotencyKey: "opening-apply",
+    };
+    assert.equal(
+      (await call(handle, "migration.importStripeBalance", apply)).status,
+      "done",
+    );
+    await call(handle, "migration.importStripeBalance", {
+      ...apply,
+      idempotencyKey: "opening-replayed-different-key",
+    });
+    assert.equal(await balance(), "3.75");
+    assert.equal(
+      state.credit,
+      0,
+      "Opening credit must no longer be spendable at its old source",
+    );
+    assert.equal(sourceDebitCalls, 2);
+    assert.equal(sourceDebitKeys.size, 1);
+    await call(handle, "customers.create", {
+      id: "alias",
+      stripeCustomerId: "cus_existing",
+      idempotencyKey: "alias",
+    });
+    const rejected = await call(handle, "migration.importStripeBalance", {
+      customerId: "alias",
+      feature: "wallet",
+      expectedCreditCents: 375,
+      externalSpendingDisabled: true,
+      dryRun: false,
+      idempotencyKey: "alias-import",
+    });
+    assert.equal(rejected.error, "customer_mapping_conflict");
+    assert.equal(sourceDebitCalls, 2);
+    const checkout = {
+      customerId: "prepaid",
+      feature: "wallet",
+      amountCents: 125,
+      successUrl: "https://app.test/success",
+      paymentMethodTypes: ["card"],
+      requestThreeDSecure: "any",
+      idempotencyKey: "checkout",
+    };
+    assert.equal(
+      (await call(handle, "prepaid.checkout", checkout)).status,
+      "done",
+    );
+    const deliver = async (id: string, type: string, object: unknown) => {
+      await webhook(handle!, id, type, object);
+      await call(handle!, "maintenance.run", { customerId: "prepaid" });
+    };
+    await deliver("prepaid-unpaid", "checkout.session.completed", {
+      id: "cs_prepaid",
+      customer: "cus_existing",
+    });
+    assert.equal(await balance(), "3.75");
+    state.paid = true;
+    await deliver(
+      "prepaid-delayed-paid",
+      "checkout.session.async_payment_succeeded",
+      { id: "cs_prepaid", customer: "cus_existing" },
+    );
+    await deliver(
+      "prepaid-delayed-paid",
+      "checkout.session.async_payment_succeeded",
+      { id: "cs_prepaid", customer: "cus_existing" },
+    );
+    await deliver(
+      "prepaid-reordered-completion",
+      "checkout.session.completed",
+      { id: "cs_prepaid", customer: "cus_existing" },
+    );
+    assert.equal(await balance(), "5");
+    state.refunded = 50;
+    await deliver("partial", "charge.refunded", {
+      id: "ch_prepaid",
+      customer: "cus_existing",
+      amount_refunded: 125,
+    });
+    await deliver("partial-duplicate", "refund.updated", {
+      id: "re_partial",
+      charge: "ch_prepaid",
+    });
+    assert.equal(await balance(), "4.5");
+    state.refundStatus = "failed";
+    await deliver("failed-refund", "refund.failed", {
+      id: "re_partial",
+      charge: "ch_prepaid",
+    });
+    assert.equal(await balance(), "5");
+    await deliver("withdraw", "charge.dispute.funds_withdrawn", {
+      id: "dp_prepaid",
+      charge: "ch_prepaid",
+      amount: 25,
+    });
+    assert.equal(await balance(), "4.75");
+    await deliver("restore", "charge.dispute.funds_reinstated", {
+      id: "dp_prepaid",
+      charge: "ch_prepaid",
+      amount: 25,
+    });
+    await deliver("withdraw-late", "charge.dispute.funds_withdrawn", {
+      id: "dp_prepaid",
+      charge: "ch_prepaid",
+      amount: 25,
+    });
+    assert.equal(await balance(), "5");
+    assert.equal(
+      (await call(handle, "credits.reconcile", { customerId: "prepaid" }))
+        .consistent,
+      true,
+    );
+    const foreign = {
+      ...adoption,
+      customerId: "other",
+      dryRun: false,
+      idempotencyKey: "conflicting-adoption",
+    };
+    await assert.rejects(
+      call(handle, "migration.adoptStripeCustomer", foreign),
+      /customer_mapping_conflict/,
+    );
+    assert.deepEqual(errors, []);
+  } finally {
+    await handle?.close();
+    await new Promise<void>((done, reject) =>
+      server.close((error) => (error ? reject(error) : done())),
     );
     await rm(directory, { recursive: true, force: true });
   }

@@ -23,6 +23,72 @@ const ARCHIVE_TABLES: [Table; 15] = [
     Table::Workflows,
 ];
 impl Billing {
+    pub(crate) async fn adopt_stripe_customer(
+        &self,
+        input: Value,
+        request: &RequestGuard,
+    ) -> Result<Value> {
+        let customer = identifier(s(&input, "customerId")?)?;
+        let stripe = s(&input, "stripeCustomerId")?;
+        let mut provider_input = input.clone();
+        provider_input["provider"] = json!("stripe");
+        let provider = self
+            .0
+            .options
+            .provider
+            .as_ref()
+            .ok_or_else(|| BillingError::new("provider_missing"))?;
+        let result = provider
+            .execute(crate::provider::PaymentCommand {
+                id: hash_v1(&input)?,
+                kind: "customer_import".into(),
+                customer: json!({"id":customer}),
+                input: provider_input,
+                resources: self.0.resources.clone(),
+            })
+            .await?;
+        if input["dryRun"] != false {
+            return Ok(
+                json!({"dryRun":true,"customerId":customer,"stripeCustomerId":stripe,"verified":result}),
+            );
+        }
+        let id = customer.to_owned();
+        let existing = self
+            .atomic(&self.scope(customer)?, move |tx| {
+                Box::pin(
+                    async move { Ok(get(tx, Table::Customers, &id).await?.unwrap_or(Value::Null)) },
+                )
+            })
+            .await?;
+        require(
+            opt(&existing, "stripeCustomerId").is_none_or(|v| v == stripe),
+            "customer_mapping_conflict",
+        )?;
+        self.0
+            .resources
+            .customer_link("stripe", stripe, Some(customer))
+            .await?;
+        let mut parameters = json!({"id":customer,"stripeCustomerId":stripe,"idempotencyKey":format!("adopt:{}",s(&input,"idempotencyKey")?)});
+        let created = self
+            .write("customers.create", &parameters, parameters.clone(), request)
+            .await?;
+        if opt(&created, "stripeCustomerId").is_none() {
+            parameters["customerId"] = json!(customer);
+            parameters["idempotencyKey"] =
+                json!(format!("adopt-link:{}", s(&input, "idempotencyKey")?));
+            self.write("customers.update", &parameters, parameters.clone(), request)
+                .await?;
+        }
+        let id = customer.to_owned();
+        self.atomic(&self.scope(customer)?, move |tx| {
+            Box::pin(async move {
+                get(tx, Table::Customers, &id)
+                    .await?
+                    .ok_or_else(|| BillingError::new("customer_not_found"))
+            })
+        })
+        .await
+    }
     pub(crate) async fn migration_export(
         &self,
         tx: &mut dyn Transaction,

@@ -9,6 +9,7 @@ use crate::{
 use brokeboy_core::{BillingError, Result, compatibility::hash_v1, decimal::Decimal};
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
+mod balances;
 mod commerce;
 mod events;
 mod subscriptions;
@@ -60,7 +61,10 @@ fn minor(amount: &str, currency: &str) -> Result<String> {
     let n = value
         .parse::<i128>()
         .map_err(|_| BillingError::new("provider_amount_overflow"))?;
-    require(n <= 9_007_199_254_740_991, "provider_amount_overflow")?;
+    require(
+        n.unsigned_abs() <= 9_007_199_254_740_991,
+        "provider_amount_overflow",
+    )?;
     Ok(value)
 }
 fn form(prefix: &str, value: &Value, result: &mut Vec<(String, String)>) {
@@ -175,7 +179,27 @@ impl Stripe {
                     continue;
                 }
                 let mut error = provider_error();
-                error.details = Some(json!({"status":status.as_u16(),"requestId":request_id}));
+                let mut bytes = Vec::new();
+                while let Ok(Some(chunk)) = response.chunk().await {
+                    if chunk.len() > 65536 - bytes.len() {
+                        break;
+                    }
+                    bytes.extend_from_slice(&chunk);
+                }
+                let body: Value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
+                let safe = |key: &str| {
+                    body["error"][key]
+                        .as_str()
+                        .filter(|v| {
+                            v.len() <= 128
+                                && v.bytes()
+                                    .all(|b| b.is_ascii_alphanumeric() || b"_[]-.".contains(&b))
+                        })
+                        .map(str::to_owned)
+                };
+                error.details = Some(
+                    json!({"status":status.as_u16(),"requestId":request_id,"code":safe("code"),"type":safe("type"),"parameter":safe("param")}),
+                );
                 return Err(error);
             }
             let mut bytes = Vec::new();
@@ -271,6 +295,14 @@ impl Stripe {
                 "customer_mapping_conflict",
             )?;
         }
+        command
+            .resources
+            .link_customer(
+                "stripe".into(),
+                id.clone(),
+                s(&command.customer, "id")?.into(),
+            )
+            .await?;
         Ok(id)
     }
     async fn price_for(
@@ -337,6 +369,12 @@ impl Stripe {
     }
 }
 impl PaymentProvider for Stripe {
+    fn supports_customer_refresh(&self, provider: &str) -> bool {
+        provider == "stripe"
+    }
+    fn provider_id(&self) -> &str {
+        "stripe"
+    }
     fn close(&self) -> BillingFuture<'_, ()> {
         self.0
             .client
@@ -347,6 +385,55 @@ impl PaymentProvider for Stripe {
     }
     fn execute(&self, command: PaymentCommand) -> BillingFuture<'_, Value> {
         Box::pin(async move {
+            if command.kind == "subscription_inspect" {
+                let sub = self
+                    .get(
+                        &path("subscriptions", s(&command.input, "stripeSubscriptionId")?)?,
+                        json!({}),
+                    )
+                    .await?;
+                self.live(&sub)?;
+                require(
+                    resource_id(&sub["customer"]) == opt(&command.input, "stripeCustomerId"),
+                    "customer_mapping_conflict",
+                )?;
+                if let Some(owner) = opt(&sub["metadata"], "brokeboy_customer") {
+                    require(command.customer["id"] == owner, "customer_mapping_conflict")?;
+                }
+                if let Some(environment) = opt(&sub["metadata"], "brokeboy_environment") {
+                    require(
+                        environment == self.0.options.environment.name(),
+                        "environment_mismatch",
+                    )?;
+                }
+                return Ok(
+                    json!({"dryRun":true,"stripeSubscriptionId":sub["id"],"stripeCustomerId":sub["customer"],"status":sub["status"],"planId":command.input["plan"]["id"]}),
+                );
+            }
+            if command.kind == "customer_import" {
+                let customer = self
+                    .get(
+                        &path("customers", s(&command.input, "stripeCustomerId")?)?,
+                        json!({}),
+                    )
+                    .await?;
+                self.live(&customer)?;
+                require(
+                    customer["deleted"] != true
+                        && customer["id"] == command.input["stripeCustomerId"],
+                    "customer_not_found",
+                )?;
+                if let Some(owner) = opt(&customer["metadata"], "brokeboy_customer") {
+                    require(command.customer["id"] == owner, "customer_mapping_conflict")?;
+                }
+                if let Some(environment) = opt(&customer["metadata"], "brokeboy_environment") {
+                    require(
+                        environment == self.0.options.environment.name(),
+                        "environment_mismatch",
+                    )?;
+                }
+                return Ok(json!({"stripeCustomerId":customer["id"]}));
+            }
             let customer = self.customer_for(&command).await?;
             self.execute_command(command, customer).await
         })
