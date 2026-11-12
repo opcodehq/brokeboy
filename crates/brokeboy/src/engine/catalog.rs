@@ -1,5 +1,5 @@
 use super::*;
-use crate::catalog::{normalize_plan, validate_catalog};
+use crate::catalog::{expand_catalog, normalize_plan, validate_catalog, validate_expanded_catalog};
 use brokeboy_core::compatibility::{canonical_json_v1, hash_v1};
 impl Billing {
     pub(crate) async fn plan(&self, id: &str, version: Option<&str>) -> Result<Value> {
@@ -43,6 +43,7 @@ impl Billing {
             }
             "catalog.diff" => {
                 validate_catalog(&input)?;
+                let input = expand_catalog(&input)?;
                 let current = self.catalog_export().await?;
                 let mut changes = Vec::new();
                 for plan in arr(&input, "plans")? {
@@ -55,9 +56,9 @@ impl Billing {
                     let mut old = previous.first().map_or_else(|| json!({}), |p| (*p).clone());
                     old.as_object_mut().unwrap().remove("version");
                     old.as_object_mut().unwrap().remove("revision");
-                    if canonical_json_v1(&old)?
-                        != canonical_json_v1(&normalize_plan(plan, arr(&input, "features")?)?)?
-                    {
+                    let mut normalized = normalize_plan(plan, arr(&input, "features")?)?;
+                    normalized.as_object_mut().unwrap().remove("variants");
+                    if canonical_json_v1(&old)? != canonical_json_v1(&normalized)? {
                         changes.push(json!({"planId":plan["id"],"action":if previous.is_empty(){"create"}else{"version"}}));
                     }
                 }
@@ -74,12 +75,15 @@ impl Billing {
         })).await
     }
     pub(crate) async fn catalog_publish(&self, input: Value) -> Result<Value> {
-        let catalog = &input["catalog"];
-        validate_catalog(catalog)?;
+        let expanded = expand_catalog(&input["catalog"])?;
+        let catalog = &expanded;
+        validate_expanded_catalog(catalog)?;
         let features = arr(catalog, "features")?.to_vec();
         let mut plans = Vec::new();
         for plan in arr(catalog, "plans")? {
-            plans.push(normalize_plan(plan, &features)?);
+            let mut normalized = normalize_plan(plan, &features)?;
+            normalized.as_object_mut().unwrap().remove("variants");
+            plans.push(normalized);
         }
         let mut normalized = catalog.clone();
         normalized["plans"] = json!(plans);

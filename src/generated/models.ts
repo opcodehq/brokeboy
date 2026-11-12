@@ -91,6 +91,8 @@ export type Plan = {
   id: string;
   name: string;
   items: Array<PlanItem>;
+  variants?: Array<PlanVariant>;
+  basePlanId?: string;
   public?: boolean;
   addOn?: boolean;
   group?: string;
@@ -107,12 +109,18 @@ export type Plan = {
   seatPriceId?: string;
 };
 export type Catalog = { features: Array<Feature>; plans: Array<Plan> };
+export type PlanVariant = {
+  id: string;
+  overrides: { [key in string]: JsonValue };
+};
 export type PublishedPlan = {
   version: string;
   revision: number;
   id: string;
   name: string;
   items: Array<PlanItem>;
+  variants?: Array<PlanVariant>;
+  basePlanId?: string;
   public?: boolean;
   addOn?: boolean;
   group?: string;

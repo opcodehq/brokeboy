@@ -103,3 +103,32 @@ Polar meter configuration maps a feature to an event name aggregating currency m
 - A scheduler for bounded maintenance, reconciliation operations, backup/restore and an integration exercise against the actual host. Run only the native maintenance engine for the new period/expiry policies; the 0.1 maintenance engine does not understand them. Rust and native TypeScript 0.2 services share the same rules.
 
 The legacy application settlement/storage/export integration tests were inspected as reference but were not executed or claimed to pass against Brokeboy. Application-specific resource settlement remains an integration boundary, not code embedded in this library.
+
+## Catalog variants
+
+Native catalog publication accepts variants on a base plan:
+
+```json
+{
+  "features": [{ "id": "credits", "kind": "consumable" }],
+  "plans": [
+    {
+      "id": "pro",
+      "name": "Pro",
+      "kind": "subscription",
+      "currency": "usd",
+      "amount": "20",
+      "interval": "month",
+      "items": [{ "feature": "credits", "included": "100", "reset": "month" }],
+      "variants": [
+        {
+          "id": "pro-annual",
+          "overrides": { "amount": "200", "interval": "year" }
+        }
+      ]
+    }
+  ]
+}
+```
+
+Overrides replace whole fields, including `items`; they are not recursive patches. Variant IDs share the global plan namespace. Overrides cannot replace identity, version, revision, ancestry or introduce nested variants. Validation, diff and publication use the same expansion. Each variant stores `basePlanId` and an independently versioned resolved snapshot. Configuration-driven base edits propagate on the next explicit publication; existing subscriptions remain pinned. Runtime exports contain resolved plans rather than executable inheritance rules. Editing an exported base alone does not implicitly rewrite its already-resolved variants. This surface is native-only until the TypeScript default engine is cut over.

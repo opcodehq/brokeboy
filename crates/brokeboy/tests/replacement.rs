@@ -508,3 +508,71 @@ async fn overlapping_refund_and_dispute_excess_remains_a_reconciliation_case() {
     );
     b.close().await.unwrap();
 }
+
+#[tokio::test]
+async fn variants_publish_inherited_snapshots_without_moving_existing_customers() {
+    let (b, _) = setup().await;
+    let mut catalog = json!({"features":[{"id":"wallet","kind":"consumable"}],"plans":[{"id":"pro","name":"Pro","kind":"free","items":[{"feature":"wallet","included":"10","reset":"month"}],"variants":[{"id":"pro-annual","overrides":{"name":"Annual","interval":"year"}}]}]});
+    b.call(
+        "catalog.publish",
+        json!({"catalog":catalog,"expectedRevision":0}),
+    )
+    .await
+    .unwrap();
+    let old = b
+        .call("catalog.get", json!({"id":"pro-annual"}))
+        .await
+        .unwrap();
+    assert_eq!(old["basePlanId"], "pro");
+    assert_eq!(old["items"][0]["included"], "10");
+    assert_eq!(
+        b.call("catalog.diff", catalog.clone()).await.unwrap()["changes"],
+        json!([])
+    );
+    b.call(
+        "subscriptions.attach",
+        json!({"customerId":"account","planId":"pro-annual","idempotencyKey":"attach-variant"}),
+    )
+    .await
+    .unwrap();
+    catalog["plans"][0]["items"][0]["included"] = json!("20");
+    let changes = b.call("catalog.diff", catalog.clone()).await.unwrap();
+    assert_eq!(changes["changes"].as_array().unwrap().len(), 2);
+    b.call(
+        "catalog.publish",
+        json!({"catalog":catalog,"expectedRevision":1}),
+    )
+    .await
+    .unwrap();
+    let new = b
+        .call("catalog.get", json!({"id":"pro-annual"}))
+        .await
+        .unwrap();
+    assert_ne!(new["version"], old["version"]);
+    assert_eq!(new["items"][0]["included"], "20");
+    assert_eq!(
+        b.call("subscriptions.list", json!({"customerId":"account"}))
+            .await
+            .unwrap()[0]["plan"]["version"],
+        old["version"]
+    );
+    let exported = b.call("catalog.export", json!({})).await.unwrap();
+    assert_eq!(
+        b.call("catalog.diff", exported).await.unwrap()["changes"],
+        json!([])
+    );
+    catalog["plans"][0]["variants"][0]["id"] = json!("pro");
+    assert_eq!(
+        b.call("catalog.validate", catalog.clone())
+            .await
+            .unwrap_err()
+            .code,
+        "duplicate_plan"
+    );
+    catalog["plans"][0]["variants"][0]["id"] = json!("pro-annual");
+    catalog["plans"][0]["variants"][0]["overrides"]["version"] = json!("forged");
+    assert_eq!(
+        b.call("catalog.validate", catalog).await.unwrap_err().code,
+        "invalid_variant_override"
+    );
+}

@@ -137,7 +137,8 @@ model!(Dimension{required{r#match:Metadata,amount:String}optional{}});
 model!(Rate{required{}optional{amount:String,tiers:Vec<Tier>,mode:TierMode,dimensions:Vec<Dimension>}});
 model!(Rollover{required{maximum:String,periods:u32}optional{}});
 model!(PlanItem{required{feature:String}optional{kind:FeatureKind,included:String,enabled:bool,pool:String,pool_scope:PoolScope,rate:Rate,overage:bool,reset:Reset,rollover:Rollover}});
-model!(Plan{required{id:String,name:String,items:Vec<PlanItem>}optional{public:bool,add_on:bool,group:String,currency:String,amount:String,interval:Interval,kind:PlanKind,trial_days:u32,trial_included:BTreeMap<String,String>,grace_days:u32,grace_included:BTreeMap<String,String>,stripe_price_id:String,stripe_meter_price_ids:BTreeMap<String,String>,seat_price_id:String}});
+model!(PlanVariant{required{id:String,overrides:BTreeMap<String,Value>}optional{}});
+model!(Plan{required{id:String,name:String,items:Vec<PlanItem>}optional{variants:Vec<PlanVariant>,base_plan_id:String,public:bool,add_on:bool,group:String,currency:String,amount:String,interval:Interval,kind:PlanKind,trial_days:u32,trial_included:BTreeMap<String,String>,grace_days:u32,grace_included:BTreeMap<String,String>,stripe_price_id:String,stripe_meter_price_ids:BTreeMap<String,String>,seat_price_id:String}});
 model!(Catalog{required{features:Vec<Feature>,plans:Vec<Plan>}optional{}});
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "typescript", derive(ts_rs::TS))]
@@ -232,6 +233,7 @@ pub fn declarations() -> String {
         PlanItem,
         Plan,
         Catalog,
+        PlanVariant,
         PublishedPlan,
         Alert,
         AutoTopUp,

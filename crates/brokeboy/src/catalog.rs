@@ -4,8 +4,50 @@ use brokeboy_core::{Result, error::identifier, pricing::Rate};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 
+/// Expand explicitly declared variants before validation or publication.
+/// Overrides replace whole fields, including items; inherited values are snapshotted.
+pub fn expand_catalog(catalog: &Value) -> Result<Value> {
+    let mut result = catalog.clone();
+    let mut plans = Vec::new();
+    for base in arr(catalog, "plans")? {
+        plans.push(base.clone());
+        if let Some(variants) = base.get("variants") {
+            for variant in variants
+                .as_array()
+                .ok_or_else(|| brokeboy_core::BillingError::new("invalid_variants"))?
+            {
+                identifier(s(variant, "id")?)?;
+                let overrides = variant["overrides"]
+                    .as_object()
+                    .ok_or_else(|| brokeboy_core::BillingError::new("invalid_variant"))?;
+                require(
+                    ["id", "version", "revision", "variants", "basePlanId"]
+                        .iter()
+                        .all(|key| !overrides.contains_key(*key)),
+                    "invalid_variant_override",
+                )?;
+                let mut resolved = base.clone();
+                let fields = resolved
+                    .as_object_mut()
+                    .ok_or_else(|| brokeboy_core::BillingError::new("invalid_plan"))?;
+                fields.remove("variants");
+                fields.extend(overrides.clone());
+                fields.insert("id".into(), variant["id"].clone());
+                fields.insert("basePlanId".into(), base["id"].clone());
+                plans.push(resolved);
+            }
+        }
+    }
+    result["plans"] = json!(plans);
+    Ok(result)
+}
+
 pub fn normalize_plan(plan: &Value, features: &[Value]) -> Result<Value> {
     let mut result = plan.clone();
+    if let Some(fields) = result.as_object_mut() {
+        fields.remove("version");
+        fields.remove("revision");
+    }
     let mut items = Vec::new();
     for item in arr(plan, "items")? {
         let mut item = item.clone();
@@ -25,6 +67,11 @@ pub fn normalize_plan(plan: &Value, features: &[Value]) -> Result<Value> {
     Ok(result)
 }
 pub fn validate_catalog(catalog: &Value) -> Result<()> {
+    let expanded = expand_catalog(catalog)?;
+    validate_expanded_catalog(&expanded)
+}
+
+pub(crate) fn validate_expanded_catalog(catalog: &Value) -> Result<()> {
     require(
         catalog["features"].is_array() && catalog["plans"].is_array(),
         "invalid_catalog",
